@@ -79,7 +79,9 @@ public:
 
     // Element specific
     virtual int giveNumberOfDofs();
-    virtual int giveNumberOfEdgeDofs() = 0;
+	//virtual int giveNumberOfuDofs() {return this->giveNumberOfDofs(); };
+    
+	virtual int giveNumberOfEdgeDofs() = 0;
     virtual int giveNumberOfEdgeDofManagers() = 0;
     virtual Element *ZZNodalRecoveryMI_giveElement() { return this; }
     void evalInitialCovarBaseVectorsAt(FloatArray &lCoords, FloatMatrix &Gcov);

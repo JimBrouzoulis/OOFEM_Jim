@@ -70,9 +70,14 @@ public:
     Shell7BasePhFi(int n, Domain *d); // constructor
     virtual ~Shell7BasePhFi() {}
     virtual void giveDofManDofIDMask(int inode, EquationID, IntArray &) const;
-    virtual void giveDofManDofIDMask_u(IntArray &answer) = 0;
-    virtual void giveDofManDofIDMask_d(IntArray &answer) = 0;
-	double computeDamageAt( GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+    virtual void giveDofManDofIDMask_u(IntArray &answer) const;
+    virtual void giveDofManDofIDMask_d(IntArray &answer) const;
+	double computeDamageAt(GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+
+	double computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+	double computeGprimInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+	double computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+	IntArray computeDamageIndexArray(int layer);
 
 	virtual int computeNumberOfDofs() { return this->giveNumberOfDofs(); }
     //virtual int checkConsistency();
@@ -98,6 +103,7 @@ protected:
         Midplane,       ///< phi_bar 7 x_bar (3 dofs)
         Director,       ///< m (3 dofs)
         InhomStrain,    ///< gamma (1 dofs) - inhomogenious thickness strain
+		Displacement,	///< phi_bar, m, gamma
 		Damage,			///< d (n dofs where n is the number of layers in the layeredCS
         All,
         AllInv,
@@ -120,7 +126,7 @@ protected:
     // Internal forces
 	void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord);
     void computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord = 0);
-	void computeSectionalForcesAt_d(int ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep, FloatArray &solVec, double zeta);
+	void computeSectionalForcesAt_d(int ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer);
 
 
     // External forces
@@ -168,7 +174,7 @@ protected:
 	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer); //@todo: define for damage
 
     // Misc
-    virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);
+    //virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);
 };
 } // end namespace oofem
 #endif

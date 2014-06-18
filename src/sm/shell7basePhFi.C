@@ -52,7 +52,7 @@
 
 namespace oofem {
 
-const int nLayers = 4;
+const int nLayers = 2;
 
 Shell7BasePhFi :: Shell7BasePhFi(int n, Domain *aDomain) : Shell7Base(n, aDomain), PhaseFieldElement(n, aDomain){
 	this->numberOfLayers = nLayers;
@@ -77,7 +77,7 @@ Shell7BasePhFi :: postInitialize()
 //    Element :: postInitialize();
     Shell7Base :: postInitialize();
 
-	this->startIDdamage = this->domain->giveNextFreeDofID();
+	this->startIDdamage = this->domain->giveNextFreeDofID(0);
 	
 	if (!this->layeredCS->giveNumberOfLayers() == NULL) {
 		this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
@@ -117,40 +117,41 @@ Shell7BasePhFi :: giveOrdering(SolutionField fieldType) const
 //    }
 //}
 
-
 void
-Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer)
+Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer) const
 {
 	IntArray answer_u, answer_d;
 
-	this->giveDofManDofIDMask_u(answer_u);
-
-    giveDofManDofIDMask_u(answer_u);
-	giveDofManDofIDMask_d(answer_d);
+    this->giveDofManDofIDMask_u(answer_u);
+	this->giveDofManDofIDMask_d(answer_d);
 
 	answer.resize(0);
 	answer.followedBy(answer_u);
 	answer.followedBy(answer_d);
 	
-	answer_u.printYourself();
-	answer_d.printYourself();
-	answer.printYourself();
+	//answer_u.printYourself();
+	//answer_d.printYourself();
+	//answer.printYourself();
 
 }
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask_u(IntArray &answer)
+Shell7BasePhFi :: giveDofManDofIDMask_u(IntArray &answer) const
 {
 	answer.setValues(7, D_u, D_v, D_w, W_u, W_v, W_w, Gamma);
 }
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask_d(IntArray &answer)
+Shell7BasePhFi :: giveDofManDofIDMask_d(IntArray &answer) const
 {
-	int sID, eID;
+    // This part is not defined when this method is called
+    int sID, eID;
+    sID = this->domain->giveNextFreeDofID(0);
+	eID = sID + numberOfLayers - 1;
 
-	sID = this->startIDdamage;
-	eID = this->startIDdamage;
+    //int sID, eID;
+	//sID = this->startIDdamage;
+	//eID = this->endIDdamage;
 
 	answer.setValues(1, sID);		//@todo: modify!!!!
 	for (int i = 2; i < eID - sID + 2; i++)
@@ -197,15 +198,14 @@ Shell7BasePhFi :: computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeTyp
 	
     this->computeDamageUnknowns(dVec, valueMode, stepN);		// should be a vector with all damage nodal values for this element
 																// ordered such that all damage dofs associated with node 1 comes first
-    FloatArray Nvec, lcoords;
-	//int layer = this->layeredCS->giveLayer(gp);					
-	IntArray indx = computeDamageIndexArray(layer);
+    FloatArray Nvec, lcoords;					
+	IntArray indx = computeDamageIndexArray(layer);         // Since dVec only contains damage vars this index vector should be 1 3 5 7 9 11 with 2 layers
 	
 	indx.printYourself();
 
 	dVecRed.beSubArrayOf(dVec, indx);
     this->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(this));		// @todo anything strange here!!!!???
-    return Nvec.dotProduct(dVec);
+    return Nvec.dotProduct(dVecRed);
 }
 
 IntArray
@@ -217,7 +217,8 @@ Shell7BasePhFi :: computeDamageIndexArray(int layer)
 
 	for (int i = 1; i <= numberOfNodes; i++)
 	{
-		indx.at(i) = layer + (i-1)*numberOfNodes;
+		//indx.at(i) = layer + (i-1)*numberOfNodes; // OLD
+        indx.at(i) = layer + (i-1)*this->layeredCS->giveNumberOfLayers(); // NEW JB
 	}
 	return indx;
 
@@ -254,7 +255,8 @@ Shell7BasePhFi :: giveNumberOfuDofs()
 int
 Shell7BasePhFi :: giveNumberOfdDofs() 
 {
-    return this->endIDdamage - this->startIDdamage + 1;
+    //return this->endIDdamage - this->startIDdamage + 1;
+    return this->giveNumberOfDofManagers() * (this->endIDdamage - this->startIDdamage + 1);
 }
 
 
@@ -305,19 +307,26 @@ Shell7BasePhFi :: computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_ud(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
-
+    
+    answer.resize( 42, this->numberOfDofMans*this->layeredCS->giveNumberOfLayers() );
+    answer.zero();
 
 }
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_du(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
 
+    answer.resize( this->numberOfDofMans*this->layeredCS->giveNumberOfLayers(), 42 );
+    answer.zero();
 
 }
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
-
+    
+    int ndofs_d  = this->numberOfDofMans*this->layeredCS->giveNumberOfLayers();
+    answer.resize( ndofs_d, ndofs_d );
+    answer.beUnitMatrix();
 
 }
 
@@ -476,9 +485,9 @@ Shell7BasePhFi :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, 
 void
 Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord)
 {
-    //
+     
     int ndofs = Shell7BasePhFi :: giveNumberOfDofs();
-	int ndofs_u = Shell7BasePhFi :: giveNumberOfuDofs();
+	int ndofs_u = Shell7BasePhFi :: giveNumberOfuDofs(); //@todo Cannot be correct JB
 	int ndofs_d = ndofs - ndofs_u;
 	double g;
 
@@ -570,6 +579,21 @@ Shell7BasePhFi :: computeVectorOfDofIDs(const IntArray &dofIdArray, ValueModeTyp
         }
         k += 7;
     }
+}
+
+
+void
+Shell7BasePhFi :: giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep)
+{
+    // Computes updated solution as: x = X + dx, m = M + dM, gam = 0 + dgam
+    // This is because the element formulation is in terms of placement and not displacement.
+    this->giveInitialSolutionVector(answer); // X & M
+    FloatArray temp;
+    int dummy = 0;
+    IntArray dofIdArray;
+    Shell7Base :: giveDofManDofIDMask(dummy, EID_MomentumBalance, dofIdArray);
+    this->computeVectorOfDofIDs(dofIdArray, VM_Total, tStep, temp);
+    answer.assemble( temp, this->giveOrderingPhFi(AllInv) );
 }
 
 // N and B matrices

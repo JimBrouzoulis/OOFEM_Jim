@@ -600,7 +600,8 @@ Shell7Base :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &solV
         }
     }
 
-    const IntArray &ordering = this->giveOrdering(All);
+    //const IntArray &ordering = this->giveOrdering(All);
+    const IntArray &ordering = this->giveOrdering_All();
     answer.assemble(tempAnswer, ordering, ordering);
 
 }
@@ -1136,7 +1137,8 @@ Shell7Base :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatA
 
     answer.resize( ndofs );
     answer.zero();
-    const IntArray &ordering_all = this->giveOrdering(All);
+    //const IntArray &ordering_all = this->giveOrdering(All);
+    const IntArray &ordering_all = this->giveOrdering_All();
     answer.assemble(f, ordering_all);
 }
 
@@ -1280,7 +1282,8 @@ Shell7Base :: computeMassMatrix(FloatMatrix &answer, TimeStep *tStep)
     int ndofs = this->computeNumberOfDofs();
     answer.resize(ndofs, ndofs);
     answer.zero();
-    const IntArray &ordering_all = this->giveOrdering(All);
+    //const IntArray &ordering_all = this->giveOrdering(All);
+    const IntArray &ordering_all = this->giveOrdering_All();
     answer.assemble(temp, ordering_all);
     answer.symmetrized();
 
@@ -1475,7 +1478,8 @@ Shell7Base :: computeMassMatrixNum(FloatMatrix &answer, TimeStep *tStep)
             M.plusProductSymmUpper(N, temp, rho*dV);
         }
         M.symmetrized();
-        const IntArray &ordering_all = this->giveOrdering(All);
+        //const IntArray &ordering_all = this->giveOrdering(All);
+        const IntArray &ordering_all = this->giveOrdering_All();
         answer.zero();
         answer.assemble(M, ordering_all, ordering_all);
 #endif
@@ -1659,7 +1663,8 @@ Shell7Base :: computePressureForce(FloatArray &answer, FloatArray solVec, const 
 
         Fp.beTProductOf(N, fp);
         Fp.times(dA);
-        answer.assemble(Fp, this->giveOrdering(All));
+        //answer.assemble(Fp, this->giveOrdering(All));
+        answer.assemble(Fp, this->giveOrdering_All() );
         
     }
 }
@@ -2122,7 +2127,8 @@ Shell7Base :: giveSolutionVector(FloatArray &answer, const IntArray &dofIdArray,
     computeVectorOfDofIDs(dofIdArray, VM_Total, tStep, temp);
     answer.resize( Shell7Base :: giveNumberOfDofs() );
     answer.zero();
-    answer.assemble( temp, this->giveOrdering(AllInv) );
+    //answer.assemble( temp, this->giveOrdering(AllInv) );
+    answer.assemble( temp, this->giveOrdering_AllInv() );
 }
 
 
@@ -2189,7 +2195,8 @@ Shell7Base :: giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep)
     IntArray dofIdArray;
     Shell7Base :: giveDofManDofIDMask(dummy, EID_MomentumBalance, dofIdArray);
     this->computeVectorOfDofIDs(dofIdArray, VM_Total, tStep, temp);
-    answer.assemble( temp, this->giveOrdering(AllInv) );
+    //answer.assemble( temp, this->giveOrdering(AllInv) );
+    answer.assemble( temp, this->giveOrdering_AllInv() );
 }
 
 

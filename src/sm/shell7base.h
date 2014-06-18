@@ -112,6 +112,9 @@ protected:
 
     virtual const IntArray &giveOrdering(SolutionField fieldType) const = 0;
 
+    virtual const IntArray &giveOrdering_All() const = 0;
+    virtual const IntArray &giveOrdering_AllInv() const = 0;
+
     std :: vector< FloatArray >initialNodeDirectors;
     
     FloatArray &giveInitialNodeDirector(int i) {

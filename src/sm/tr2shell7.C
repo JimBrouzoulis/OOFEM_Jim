@@ -75,6 +75,17 @@ Tr2Shell7 :: giveOrdering(SolutionField fieldType) const
     }
 }
 
+const IntArray &
+Tr2Shell7 :: giveOrdering_All() const
+{
+    return this->ordering_all;
+}
+
+const IntArray &
+Tr2Shell7 :: giveOrdering_AllInv() const
+{
+    return this->ordering_gr;
+}
 
 void
 Tr2Shell7 :: giveLocalNodeCoords(FloatArray &nodeLocalXiCoords, FloatArray &nodeLocalEtaCoords)

@@ -76,6 +76,8 @@ protected:
     }
 
     virtual const IntArray &giveOrdering(SolutionField fieldType) const;
+    virtual const IntArray &giveOrdering_All() const;
+    virtual const IntArray &giveOrdering_AllInv() const;
 
     //specific
     void giveSurfaceDofMapping(IntArray &answer, int iSurf) const;

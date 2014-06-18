@@ -45,6 +45,7 @@
 #include "boundaryload.h"
 #include "vtkxmlexportmodule.h"
 #include "classfactory.h"
+#include "tr2shell7.h"
 
 namespace oofem {
 REGISTER_Element(Tr2Shell7PhFi);
@@ -52,7 +53,7 @@ REGISTER_Element(Tr2Shell7PhFi);
 FEI3dTrQuad Tr2Shell7PhFi :: interpolation;
 
 IntArray Tr2Shell7PhFi :: ordering_disp(42);
-
+IntArray Tr2Shell7PhFi :: ordering_disp_inv(42);
 IntArray Tr2Shell7PhFi:: ordering_all(1);
 IntArray Tr2Shell7PhFi:: ordering_damage(1);
 IntArray Tr2Shell7PhFi :: ordering_gr(1);
@@ -67,6 +68,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 	
 	this->ordering_damage.resize(0);
 	this->ordering_gr.resize(0);
+    this->ordering_disp_inv.resize(0);
+
 	IntArray localDam, localDisp(7);	// hard coded for 7 parameter shell!!
 
 	localDam.resize(0);
@@ -74,16 +77,18 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 
 	for (int i = 1; i <= numberOfLayers; i++)
 	{
-		localDam.followedBy(i + this->giveNumberOfuDofs());
+		//localDam.followedBy(i + this->giveNumberOfuDofs());
+        localDam.followedBy(7 + i);
 	}
-
+    localDam.printYourself();
 
 	for (int i = 1; i <= this->numberOfDofMans; i++)
 	{
 		this->ordering_damage.followedBy(localDam);
 		this->ordering_gr.followedBy(localDisp);
 		this->ordering_gr.followedBy(localDam);
-		
+        this->ordering_disp_inv.followedBy(localDisp);
+
 		localDisp.at(1) += 3;
 		localDisp.at(2) += 3;
 		localDisp.at(3) += 3;
@@ -92,7 +97,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 		localDisp.at(6) += 3;
 		localDisp.at(7) += 1;
 		
-		localDam.add(numberOfLayers);
+		//localDam.add(numberOfLayers);
+        localDam.add(7 + numberOfLayers);
 	}
 
 	this->ordering_all.resize(0);
@@ -100,7 +106,7 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 	this->ordering_all = this->ordering_disp;
 	this->ordering_all.followedBy(ordering_damage);
 
-
+    ordering_damage.printYourself();
 }
 
 void
@@ -112,14 +118,17 @@ Tr2Shell7PhFi :: giveDofManDofIDMask_u(IntArray &answer)
 void
 Tr2Shell7PhFi :: giveDofManDofIDMask_d(IntArray &answer)
 {
+    //todo this is not correct?? //JB
 	Shell7BasePhFi :: giveDofManDofIDMask_d(answer);
+    answer.printYourself();
 }
 
 const IntArray &
 Tr2Shell7PhFi:: giveOrdering(SolutionField fieldType) const
 {
     OOFEM_ERROR("Tr2Shell7PhFi :: giveOrdering not implemented: Use Tr2Shell7PhFi :: giveOrderingPhFi instead");
-		return 0;
+    return 0;
+
 }
 
 
@@ -140,6 +149,17 @@ Tr2Shell7PhFi:: giveOrderingPhFi(SolutionFieldPhFi fieldType) const
     }
 }
 
+const IntArray &
+Tr2Shell7PhFi :: giveOrdering_All() const
+{
+    return this->ordering_disp; // When shell7base methods are called this is what is wanted
+}
+
+const IntArray &
+Tr2Shell7PhFi :: giveOrdering_AllInv() const
+{
+    return this->ordering_disp_inv;
+}
 
 void
 Tr2Shell7PhFi:: giveLocalNodeCoords(FloatArray &nodeLocalXiCoords, FloatArray &nodeLocalEtaCoords)

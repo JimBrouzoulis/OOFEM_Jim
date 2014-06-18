@@ -64,6 +64,7 @@ protected:
     static bool __initialized;
     static IntArray ordering_all;
 	static IntArray ordering_disp;
+    static IntArray ordering_disp_inv;
 	static IntArray ordering_damage;
     static IntArray ordering_gr;
     static IntArray ordering_gr_edge;
@@ -85,6 +86,8 @@ protected:
     virtual const IntArray &giveOrdering(SolutionField fieldType) const;
 	const IntArray &giveOrderingPhFi(SolutionFieldPhFi fieldType) const;
 
+    virtual const IntArray &giveOrdering_All() const;
+    virtual const IntArray &giveOrdering_AllInv() const;
 
     //specific
     void giveSurfaceDofMapping(IntArray &answer, int iSurf) const;

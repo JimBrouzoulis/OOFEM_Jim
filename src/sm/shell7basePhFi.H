@@ -69,10 +69,12 @@ public:
 
     Shell7BasePhFi(int n, Domain *d); // constructor
     virtual ~Shell7BasePhFi() {}
-    virtual void giveDofManDofIDMask(int inode, EquationID, IntArray &);
-    virtual void giveDofManDofIDMask_u(IntArray &answer);
-    virtual void giveDofManDofIDMask_d(IntArray &answer);
-	double computeDamageAt(GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+    virtual void giveDofManDofIDMask(int inode, EquationID, IntArray &) const;
+    virtual void giveDofManDofIDMask_u(IntArray &answer) const;
+    virtual void giveDofManDofIDMask_d(IntArray &answer) const;
+	virtual void giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep);
+    
+    double computeDamageAt(GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 
 	double computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 	double computeGprimInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);

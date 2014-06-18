@@ -53,6 +53,7 @@ set (sm_element
     qplanstrssphf.C
     brouzoulisshell.C
 	shell7basephfi.C
+	tr2shell7phfi.C
     )
 
 set (sm_interface_elements

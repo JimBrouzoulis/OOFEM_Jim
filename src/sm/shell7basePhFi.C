@@ -52,7 +52,11 @@
 
 namespace oofem {
 
-Shell7BasePhFi :: Shell7BasePhFi(int n, Domain *aDomain) : Shell7Base(n, aDomain), PhaseFieldElement(n, aDomain) {}
+const int nLayers = 4;
+
+Shell7BasePhFi :: Shell7BasePhFi(int n, Domain *aDomain) : Shell7Base(n, aDomain), PhaseFieldElement(n, aDomain){
+	this->numberOfLayers = nLayers;
+}
 
 IRResultType Shell7BasePhFi :: initializeFrom(InputRecord *ir)
 {
@@ -74,9 +78,21 @@ Shell7BasePhFi :: postInitialize()
     Shell7Base :: postInitialize();
 
 	this->startIDdamage = this->domain->giveNextFreeDofID();
-	this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
+	
+	if (!this->layeredCS->giveNumberOfLayers() == NULL) {
+		this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
+	} else {
+		this->endIDdamage = this->startIDdamage + numberOfLayers - 1;
+	}
+	
 }
 
+const IntArray &
+Shell7BasePhFi :: giveOrdering(SolutionField fieldType) const
+{
+    OOFEM_ERROR("Shell7BasePhFi :: giveOrdering not implemented: Use Shell7BasePhFi :: giveOrderingPhFi instead");
+	return 0;
+}
 
 //Interface *Shell7BasePhFi :: giveInterface(InterfaceType it)
 //{
@@ -103,7 +119,7 @@ Shell7BasePhFi :: postInitialize()
 
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer) const
+Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer)
 {
 	IntArray answer_u, answer_d;
 
@@ -123,13 +139,13 @@ Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer
 }
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask_u(IntArray &answer) const
+Shell7BasePhFi :: giveDofManDofIDMask_u(IntArray &answer)
 {
 	answer.setValues(7, D_u, D_v, D_w, W_u, W_v, W_w, Gamma);
 }
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask_d(IntArray &answer) const
+Shell7BasePhFi :: giveDofManDofIDMask_d(IntArray &answer)
 {
 	int sID, eID;
 
@@ -311,11 +327,15 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
 {
     //set displacement and nonlocal location array
     ///@todo this part is enough to do once
-    IntArray IdMask_u, IdMask_d;
-    this->giveDofManDofIDMask_u( IdMask_u );
-    this->giveDofManDofIDMask_d( IdMask_d );
-    this->computeLocationArrayOfDofIDs( IdMask_u, loc_u );		//@todo: needs to be defined??
-    this->computeLocationArrayOfDofIDs( IdMask_d, loc_d );		//@todo: needs to be defined??
+    //IntArray IdMask_u, IdMask_d;
+    //this->giveDofManDofIDMask_u( IdMask_u );
+    //this->giveDofManDofIDMask_d( IdMask_d );
+    //this->computeLocationArrayOfDofIDs( IdMask_u, loc_u );		//@todo: needs to be defined??
+    //this->computeLocationArrayOfDofIDs( IdMask_d, loc_d );		//@todo: needs to be defined??
+
+	IntArray loc_u, loc_d;
+	loc_u = giveOrderingPhFi(Displacement);
+	loc_d = giveOrderingPhFi(Damage);
 
     int nDofs = this->computeNumberOfDofs();
     answer.resize( nDofs, nDofs );
@@ -398,7 +418,7 @@ Shell7BasePhFi :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &
         }
     }
 
-    const IntArray &ordering = this->giveOrdering(Displacement);		// @todo: defined in the actual element!!!!
+    const IntArray &ordering = this->giveOrderingPhFi(Displacement);		// @todo: defined in the actual element!!!!
     answer.assemble(tempAnswer, ordering, ordering);
 
 }
@@ -510,8 +530,8 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
 
     answer.resize( ndofs );
     answer.zero();
-    const IntArray &ordering_disp = this->giveOrdering(Displacement);
-	const IntArray &ordering_damage = this->giveOrdering(Damage);
+    const IntArray &ordering_disp = this->giveOrderingPhFi(Displacement);
+	const IntArray &ordering_damage = this->giveOrderingPhFi(Damage);
     answer.assemble(fu, ordering_disp);		//ordering_disp contains only displacement related dofs, not damage
 	answer.assemble(fd, ordering_damage);
 
@@ -555,19 +575,27 @@ Shell7BasePhFi :: computeVectorOfDofIDs(const IntArray &dofIdArray, ValueModeTyp
 // N and B matrices
 
 void
-computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS) //@todo: define for damage
+computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li, int ui) //@todo: define for damage
 {
+	answer.resize(1,1);
+	answer.zero();
 }
 
 void
-computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS) //@todo: define for damage
+computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li, int ui) //@todo: define for damage
 {
+	answer.resize(1,1);
+	answer.zero();
+
 } 
 
 void
 computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer) //@todo: define for damage
 {
-};
+	answer.resize(1);
+	answer.zero();
+
+}
 
 #if 0
 void

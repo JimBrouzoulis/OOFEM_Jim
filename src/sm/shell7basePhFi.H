@@ -69,9 +69,9 @@ public:
 
     Shell7BasePhFi(int n, Domain *d); // constructor
     virtual ~Shell7BasePhFi() {}
-    virtual void giveDofManDofIDMask(int inode, EquationID, IntArray &) const;
-    virtual void giveDofManDofIDMask_u(IntArray &answer) const;
-    virtual void giveDofManDofIDMask_d(IntArray &answer) const;
+    virtual void giveDofManDofIDMask(int inode, EquationID, IntArray &);
+    virtual void giveDofManDofIDMask_u(IntArray &answer);
+    virtual void giveDofManDofIDMask_d(IntArray &answer);
 	double computeDamageAt(GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 
 	double computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
@@ -99,7 +99,7 @@ public:
 
 protected:
 
-	enum SolutionField {
+	enum SolutionFieldPhFi {
         Midplane,       ///< phi_bar 7 x_bar (3 dofs)
         Director,       ///< m (3 dofs)
         InhomStrain,    ///< gamma (1 dofs) - inhomogenious thickness strain
@@ -110,7 +110,10 @@ protected:
         EdgeInv,
     };
 
-    virtual const IntArray &giveOrdering(SolutionField fieldType) const = 0;
+	int numberOfLayers;
+
+    virtual const IntArray &giveOrdering(SolutionField fieldType) const;
+	virtual const IntArray &giveOrderingPhFi(SolutionFieldPhFi fieldType) const = 0;
 
     virtual IRResultType initializeFrom(InputRecord *ir);
 
@@ -118,10 +121,10 @@ protected:
     virtual void computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep);
     virtual void new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &solVec, FloatArray &solVecI, FloatArray &solVecJ, MatResponseMode rMode, TimeStep *tStep);
 
-    void computeStiffnessMatrix_uu(FloatMatrix &, MatResponseMode, TimeStep *);
-    void computeStiffnessMatrix_ud(FloatMatrix &, MatResponseMode, TimeStep *);
-    void computeStiffnessMatrix_dd(FloatMatrix &, MatResponseMode, TimeStep *);
-    void computeStiffnessMatrix_du(FloatMatrix &, MatResponseMode, TimeStep *);
+    void computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode, TimeStep *);
+    void computeStiffnessMatrix_ud(FloatMatrix &answer, MatResponseMode, TimeStep *);
+    void computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode, TimeStep *);
+    void computeStiffnessMatrix_du(FloatMatrix &answer, MatResponseMode, TimeStep *);
 
     // Internal forces
 	void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord);
@@ -168,10 +171,11 @@ protected:
 
 
     // N and B matrices
-    virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
-	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS); //@todo: define for damage
+	virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
 
-	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer); //@todo: define for damage
+	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
+
+	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer){}; //@todo: define for damage
 
     // Misc
     //virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);

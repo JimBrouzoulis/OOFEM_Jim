@@ -99,6 +99,8 @@ public:
 
 	virtual Element *ZZNodalRecoveryMI_giveElement() { return this; }
 
+    double neg_MaCauley(double par);
+
 protected:
 
 	enum SolutionFieldPhFi {
@@ -131,7 +133,7 @@ protected:
     // Internal forces
 	void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord);
     void computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord = 0);
-	void computeSectionalForcesAt_d(int ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer);
+	void computeSectionalForcesAt_d(double ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer, FloatArray &Ddam_Dxi);
 
 
     // External forces
@@ -175,9 +177,9 @@ protected:
     // N and B matrices
 	virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
 
-	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS); //@todo: define for damage
+	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer); //@todo: define for damage
 
-	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer){}; //@todo: define for damage
+	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer); //@todo: define for damage
 
     // Misc
     //virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);

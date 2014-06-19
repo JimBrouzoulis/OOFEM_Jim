@@ -110,7 +110,7 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 	this->ordering_all.followedBy(ordering_damage);
 
     
-    // JB
+    // JB - New
 
     IntArray temp_x(0), temp_m(0), temp_dam(0), local_temp_x(0), local_temp_m(0), local_temp_gam(0), local_temp_dam(0);
     temp_x.setValues(3, 1, 2, 3);
@@ -145,8 +145,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
     this->ordering_disp.followedBy(local_temp_gam); // gamma field
     this->ordering_damage = local_temp_dam;
 
-    ordering_disp.printYourself();
-    ordering_damage.printYourself();
+    //ordering_disp.printYourself();
+    //ordering_damage.printYourself();
 }
 
 void
@@ -158,9 +158,7 @@ Tr2Shell7PhFi :: giveDofManDofIDMask_u(IntArray &answer)
 void
 Tr2Shell7PhFi :: giveDofManDofIDMask_d(IntArray &answer)
 {
-    //todo this is not correct?? //JB
 	Shell7BasePhFi :: giveDofManDofIDMask_d(answer);
-    answer.printYourself();
 }
 
 const IntArray &

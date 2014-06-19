@@ -2197,6 +2197,10 @@ Shell7Base :: giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep)
     this->computeVectorOfDofIDs(dofIdArray, VM_Total, tStep, temp);
     //answer.assemble( temp, this->giveOrdering(AllInv) );
     answer.assemble( temp, this->giveOrdering_AllInv() );
+    temp.printYourself();
+    this->giveOrdering_AllInv().printYourself();
+    answer.printYourself();
+
 }
 
 

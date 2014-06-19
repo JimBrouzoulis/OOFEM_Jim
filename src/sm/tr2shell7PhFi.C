@@ -54,6 +54,8 @@ FEI3dTrQuad Tr2Shell7PhFi :: interpolation;
 
 IntArray Tr2Shell7PhFi :: ordering_disp(42);
 IntArray Tr2Shell7PhFi :: ordering_disp_inv(42);
+IntArray Tr2Shell7PhFi :: ordering_base(42);
+IntArray Tr2Shell7PhFi :: ordering_base_inv(42); 
 IntArray Tr2Shell7PhFi:: ordering_all(1);
 IntArray Tr2Shell7PhFi:: ordering_damage(1);
 IntArray Tr2Shell7PhFi :: ordering_gr(1);
@@ -80,7 +82,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 		//localDam.followedBy(i + this->giveNumberOfuDofs());
         localDam.followedBy(7 + i);
 	}
-    localDam.printYourself();
+
+    int numDofsPerNode = 7 + numberOfLayers;
 
 	for (int i = 1; i <= this->numberOfDofMans; i++)
 	{
@@ -97,8 +100,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 		localDisp.at(6) += 3;
 		localDisp.at(7) += 1;
 		
-		//localDam.add(numberOfLayers);
-        localDam.add(7 + numberOfLayers);
+		localDam.add(numberOfLayers);
+       
 	}
 
 	this->ordering_all.resize(0);
@@ -106,6 +109,43 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 	this->ordering_all = this->ordering_disp;
 	this->ordering_all.followedBy(ordering_damage);
 
+    
+    // JB
+
+    IntArray temp_x(0), temp_m(0), temp_dam(0), local_temp_x(0), local_temp_m(0), local_temp_gam(0), local_temp_dam(0);
+    temp_x.setValues(3, 1, 2, 3);
+    temp_m.setValues(3, 4, 5, 6);
+    int temp_gam = 7;
+
+	for (int i = 1; i <= numberOfLayers; i++) {
+        temp_dam.followedBy(7 + i);
+	}
+
+    for (int i = 1; i <= this->numberOfDofMans; i++)
+	{
+        local_temp_x.followedBy(temp_x);
+        local_temp_m.followedBy(temp_m);
+        local_temp_gam.followedBy(temp_gam);
+        local_temp_dam.followedBy(temp_dam);
+        temp_x.add(numDofsPerNode);
+        temp_m.add(numDofsPerNode);
+        temp_gam +=numDofsPerNode;
+        temp_dam.add(numDofsPerNode);
+    }
+    //local_temp_x.printYourself();
+    //local_temp_m.printYourself();
+    //local_temp_gam.printYourself();
+    //local_temp_dam.printYourself();
+    
+    // Construct the two orddering arrays
+    ordering_disp.resize(0);
+    ordering_damage.resize(0);
+    this->ordering_disp.followedBy(local_temp_x); // xbar field
+    this->ordering_disp.followedBy(local_temp_m); // director field
+    this->ordering_disp.followedBy(local_temp_gam); // gamma field
+    this->ordering_damage = local_temp_dam;
+
+    ordering_disp.printYourself();
     ordering_damage.printYourself();
 }
 
@@ -152,13 +192,14 @@ Tr2Shell7PhFi:: giveOrderingPhFi(SolutionFieldPhFi fieldType) const
 const IntArray &
 Tr2Shell7PhFi :: giveOrdering_All() const
 {
-    return this->ordering_disp; // When shell7base methods are called this is what is wanted
+    return this->ordering_base; // When shell7base methods are called this is what is wanted
 }
 
 const IntArray &
 Tr2Shell7PhFi :: giveOrdering_AllInv() const
 {
-    return this->ordering_disp_inv;
+    // Same as in Shell7Base 
+    return this->ordering_base_inv;
 }
 
 void

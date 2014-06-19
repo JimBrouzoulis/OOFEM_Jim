@@ -72,7 +72,7 @@ public:
     virtual void giveDofManDofIDMask(int inode, EquationID, IntArray &) const;
     virtual void giveDofManDofIDMask_u(IntArray &answer) const;
     virtual void giveDofManDofIDMask_d(IntArray &answer) const;
-	virtual void giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep);
+	//virtual void giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep);
     
     double computeDamageAt(GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 
@@ -175,7 +175,7 @@ protected:
     // N and B matrices
 	virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
 
-	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
+	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS); //@todo: define for damage
 
 	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer){}; //@todo: define for damage
 

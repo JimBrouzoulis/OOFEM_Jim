@@ -980,7 +980,8 @@ void EngngModel :: assembleVector(FloatArray &answer, TimeStep *tStep, EquationI
                                   const UnknownNumberingScheme &s, Domain *domain, FloatArray *eNorms)
 {
     if ( eNorms ) {
-        int maxdofids = domain->giveMaxDofID();
+
+        int maxdofids = domain->giveMaxDofID()+2;
 #ifdef __PARALLEL_MODE
         if ( this->isParallel() ) {
             int val;

@@ -48,11 +48,14 @@
 #include "constantsurfaceload.h"
 #include "vtkxmlexportmodule.h"
 #include "fracturemanager.h"
+
+#include "masterdof.h"
+
 #include <fstream>
 
 namespace oofem {
 
-const int nLayers = 4;
+const int nLayers = 2;
 
 Shell7BasePhFi :: Shell7BasePhFi(int n, Domain *aDomain) : Shell7Base(n, aDomain), PhaseFieldElement(n, aDomain){
 	this->numberOfLayers = nLayers;
@@ -70,21 +73,21 @@ void
 Shell7BasePhFi :: postInitialize()
 {
     
-//    this->layeredCS = dynamic_cast< LayeredCrossSection * >( this->giveCrossSection()  );
-//    this->fei       = dynamic_cast< FEInterpolation3d   * >( this->giveInterpolation() );
-//    this->setupInitialNodeDirectors();
 
-//    Element :: postInitialize();
     Shell7Base :: postInitialize();
 
-	this->startIDdamage = this->domain->giveNextFreeDofID(0);
+	//this->startIDdamage = this->domain->giveNextFreeDofID(0);
+	//
+	//if (!this->layeredCS->giveNumberOfLayers() == NULL) {
+	//	this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
+	//} else {
+	//	this->endIDdamage = this->startIDdamage + numberOfLayers - 1;
+	//}
 	
-	if (!this->layeredCS == NULL) {
-		this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
-	} else {
-		this->endIDdamage = this->startIDdamage + numberOfLayers - 1;
-	}
-	
+
+    //this->giveDomain()->setNextFreeDofID(this->domain->giveNextFreeDofID(0) + numberOfLayers);
+    //this->giveDomain()->setNextFreeDofID(23 + numberOfLayers);
+
 }
 
 const IntArray &
@@ -117,40 +120,37 @@ Shell7BasePhFi :: giveOrdering(SolutionField fieldType) const
 //    }
 //}
 
-
 void
-Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer)
+Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer) const
 {
 	IntArray answer_u, answer_d;
 
-	this->giveDofManDofIDMask_u(answer_u);
-
-    giveDofManDofIDMask_u(answer_u);
-	giveDofManDofIDMask_d(answer_d);
+    this->giveDofManDofIDMask_u(answer_u);
+	this->giveDofManDofIDMask_d(answer_d);
 
 	answer.resize(0);
 	answer.followedBy(answer_u);
 	answer.followedBy(answer_d);
-	
-	answer_u.printYourself();
-	answer_d.printYourself();
-	answer.printYourself();
 
 }
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask_u(IntArray &answer)
+Shell7BasePhFi :: giveDofManDofIDMask_u(IntArray &answer) const
 {
 	answer.setValues(7, D_u, D_v, D_w, W_u, W_v, W_w, Gamma);
 }
 
 void
-Shell7BasePhFi :: giveDofManDofIDMask_d(IntArray &answer)
+Shell7BasePhFi :: giveDofManDofIDMask_d(IntArray &answer) const
 {
-	int sID, eID;
+    // This part is not defined when this method is called
+    int sID, eID;
+    sID = this->domain->giveNextFreeDofID(0);
+	eID = sID + numberOfLayers - 1;
 
-	sID = this->startIDdamage;
-	eID = this->startIDdamage;
+    //int sID, eID;
+	//sID = this->startIDdamage;
+	//eID = this->endIDdamage;
 
 	answer.setValues(1, sID);		//@todo: modify!!!!
 	for (int i = 2; i < eID - sID + 2; i++)
@@ -180,7 +180,6 @@ Shell7BasePhFi :: computeDamageAt( GaussPoint *gp, ValueModeType valueMode,  Tim
 	{
 		indx.at(i) = layer + (i-1)*numberOfNodes;
 	}
-	indx.printYourself();
 
 	dVecRed.beSubArrayOf(dVec, indx);
     this->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(this));		// @todo anything strange here!!!!???
@@ -197,15 +196,12 @@ Shell7BasePhFi :: computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeTyp
 	
     this->computeDamageUnknowns(dVec, valueMode, stepN);		// should be a vector with all damage nodal values for this element
 																// ordered such that all damage dofs associated with node 1 comes first
-    FloatArray Nvec, lcoords;
-	//int layer = this->layeredCS->giveLayer(gp);					
-	IntArray indx = computeDamageIndexArray(layer);
-	
-	indx.printYourself();
+    FloatArray Nvec, lcoords;					
+	IntArray indx = computeDamageIndexArray(layer);         // Since dVec only contains damage vars this index vector should be 1 3 5 7 9 11 with 2 layers
 
 	dVecRed.beSubArrayOf(dVec, indx);
     this->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(this));		// @todo anything strange here!!!!???
-    return Nvec.dotProduct(dVec);
+    return Nvec.dotProduct(dVecRed);
 }
 
 IntArray
@@ -217,7 +213,8 @@ Shell7BasePhFi :: computeDamageIndexArray(int layer)
 
 	for (int i = 1; i <= numberOfNodes; i++)
 	{
-		indx.at(i) = layer + (i-1)*numberOfNodes;
+		//indx.at(i) = layer + (i-1)*numberOfNodes; // OLD
+        indx.at(i) = layer + (i-1)*this->layeredCS->giveNumberOfLayers(); // NEW JB
 	}
 	return indx;
 
@@ -254,7 +251,9 @@ Shell7BasePhFi :: giveNumberOfuDofs()
 int
 Shell7BasePhFi :: giveNumberOfdDofs() 
 {
-    return this->endIDdamage - this->startIDdamage + 1;
+    //return this->endIDdamage - this->startIDdamage + 1;
+    //return this->giveNumberOfDofManagers() * (this->endIDdamage - this->startIDdamage + 1);
+    return this->giveNumberOfDofManagers() * this->numberOfLayers;
 }
 
 
@@ -305,19 +304,26 @@ Shell7BasePhFi :: computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_ud(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
-
+    
+    answer.resize( 42, this->numberOfDofMans*this->layeredCS->giveNumberOfLayers() );
+    answer.zero();
 
 }
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_du(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
 
+    answer.resize( this->numberOfDofMans*this->layeredCS->giveNumberOfLayers(), 42 );
+    answer.zero();
 
 }
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
-
+    
+    int ndofs_d  = this->numberOfDofMans*this->layeredCS->giveNumberOfLayers();
+    answer.resize( ndofs_d, ndofs_d );
+    answer.beUnitMatrix();
 
 }
 
@@ -351,6 +357,8 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
     answer.assemble( answer2, loc_u, loc_d );
     answer.assemble( answer3, loc_d, loc_u );
     answer.assemble( answer4, loc_d, loc_d );
+
+
 }
 
 
@@ -383,7 +391,6 @@ Shell7BasePhFi :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &
             this->computeGeneralizedStrainVectorNew(genEpsI, solVecI, B);
             this->computeGeneralizedStrainVectorNew(genEpsJ, solVecJ, B);
             this->computeGeneralizedStrainVectorNew(genEps , solVec , B);
-
             // Material stiffness
             Shell7Base :: computeLinearizedStiffness(gp, mat, tStep, A, genEps);
 
@@ -406,9 +413,8 @@ Shell7BasePhFi :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &
             
             this->computeTripleProduct(K, B, L, B);
             double dV = this->computeVolumeAroundLayer(gp, layer);
-			//damage = this->computeDamageAt(gp, VM_Total,  tStep);
-			//g = this->computeGInLayer(gp, VM_Total,  tStep);				// Check so that the correct computeDamageAt method is used (in Shell7BasePhFi)
-			g = this->computeGInLayer(layer, gp, VM_Total,  tStep);				
+			//damage = this->computeDamageAt(gp, VM_Total,  tStep);			
+			g = this->computeGInLayer(layer, gp, VM_Total,  tStep);				// Check so that the correct computeDamageAt method is used (in Shell7BasePhFi)
 			K.times(g);
 
 			//@todo: add scaling of stiffness matrix by damage!!!!
@@ -418,7 +424,8 @@ Shell7BasePhFi :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &
         }
     }
 
-    const IntArray &ordering = this->giveOrderingPhFi(Displacement);		// @todo: defined in the actual element!!!!
+    //const IntArray &ordering = this->giveOrderingPhFi(Displacement);		// @todo: defined in the actual element!!!!
+    const IntArray &ordering = this->giveOrdering_All();
     answer.assemble(tempAnswer, ordering, ordering);
 
 }
@@ -463,27 +470,26 @@ Shell7BasePhFi :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, 
 
     FloatArray solVec_u, solVec_d, solVec;
     this->giveUpdatedSolutionVector(solVec, tStep); // placement vector x
+
 	//this->giveUpdatedSolutionVector_d(solVec_d, tStep); // damage vector, one component per layer
 	
 	//solVec.resize(solVec_u.giveSize() + solVec_d.giveSize());
 
     this->computeSectionalForces(answer, tStep, solVec, useUpdatedGpRecord);
 
-    ///@todo How to treat the convective force? Only active during dynamic simulations
 }
 
 
 void
 Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord)
 {
-    //
+     
     int ndofs = Shell7BasePhFi :: giveNumberOfDofs();
-	int ndofs_u = Shell7BasePhFi :: giveNumberOfuDofs();
+	int ndofs_u = Shell7BasePhFi :: giveNumberOfuDofs(); 
 	int ndofs_d = ndofs - ndofs_u;
-	double g;
 
     int numberOfLayers = this->layeredCS->giveNumberOfLayers();     // conversion of types
-    int sectionalForces_ds;
+    double sectionalForces_ds = 0;
 	FloatArray fu(ndofs_u), fd(ndofs_d), ftemp_u, ftemp_d, sectionalForces, sectionalForces_dv;
     FloatArray genEps, genEpsD, totalSolVec, lCoords, Nd;
     FloatMatrix B, Bd;
@@ -496,33 +502,40 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
         IntegrationRule *iRuleL = integrationRulesArray [ layer - 1 ];
         Material *mat = domain->giveMaterial( this->layeredCS->giveLayerMaterial(layer) );
 		IntArray indx_d = computeDamageIndexArray(layer);
+        FloatArray dVecTotal, dVecLayer, Ddam_Dxi;
+	
+        this->computeDamageUnknowns(dVecTotal, VM_Total, tStep);		// vector with all damage nodal values for this element
+	    dVecLayer.beSubArrayOf(dVecTotal, indx_d);                      // vector of damage variables for a given layer        
 
         for ( int j = 1; j <= iRuleL->giveNumberOfIntegrationPoints(); j++ ) {
             GaussPoint *gp = iRuleL->getIntegrationPoint(j - 1);
             lCoords = *gp->giveCoordinates();
             this->computeBmatrixAt(lCoords, B);
-			this->computeBdmatrixAt(lCoords, Bd);
-			this->computeNdvectorAt(lCoords, ftemp_d);
-
+			this->computeBdmatrixAt(lCoords, Bd);      // (2x6)
+			this->computeNdvectorAt(lCoords, ftemp_d); // (1x6)
+            Ddam_Dxi.beProductOf(Bd,dVecLayer);        // [dalpha/dxi1, dalpha/dxi2]
 
             this->computeGeneralizedStrainVectorNew(genEpsD, solVec, B);
             this->computeGeneralizedStrainVectorNew(genEps, totalSolVec, B); // used for computing the stress
 
             double zeta = giveGlobalZcoord( *gp->giveCoordinates() ); 
             this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEpsD, zeta); // these are per unit volume
-			this->computeSectionalForcesAt_d(sectionalForces_ds, sectionalForces_dv, gp, mat, tStep, zeta, layer); // these are per unit volume
+			this->computeSectionalForcesAt_d(sectionalForces_ds, sectionalForces_dv, gp, mat, tStep, zeta, layer, Ddam_Dxi); // these are per unit volume
 
 				
             // Computation of sectional forces: f = B^t*[N M T Ms Ts]^t
             ftemp_u.beTProductOf(B,sectionalForces);
             double dV = this->computeVolumeAroundLayer(gp, layer);
-			g = this->computeGInLayer(layer, gp, VM_Total,  tStep);
-			OOFEM_ERROR("Shell7BasePhFi :: computeSectionalForces, Need to implement sectional forces for damage evolution")
+			double g = this->computeGInLayer(layer, gp, VM_Total,  tStep);
+			//OOFEM_ERROR("Shell7BasePhFi :: computeSectionalForces, Need to implement sectional forces for damage evolution")
 			fu.add(dV*g, ftemp_u);
 
 			ftemp_d.times(sectionalForces_ds*dV);
 			ftemp_d.plusProduct(Bd, sectionalForces_dv, dV);
 			
+
+            //@todo TEMP!!
+            ftemp_d.zero();
 			fd.assemble(ftemp_d, indx_d);
 
         }
@@ -534,14 +547,68 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
 	const IntArray &ordering_damage = this->giveOrderingPhFi(Damage);
     answer.assemble(fu, ordering_disp);		//ordering_disp contains only displacement related dofs, not damage
 	answer.assemble(fd, ordering_damage);
+    ordering_disp.printYourself();
+    fu.printYourself();
+    //fd.printYourself();
 
 }
 
 
+double 
+Shell7BasePhFi :: neg_MaCauley(double par)
+{
+    return 0.5 * ( abs(par) - par );
+}
 
 void
-Shell7BasePhFi :: computeSectionalForcesAt_d(int sectionalForcesScal, FloatArray &sectionalForcesVec, IntegrationPoint *ip, Material *mat, TimeStep *tStep, double zeta, int layer)
+Shell7BasePhFi :: computeSectionalForcesAt_d(double sectionalForcesScal, FloatArray &sectionalForcesVec, IntegrationPoint *gp,
+                                            Material *mat, TimeStep *tStep, double zeta, int layer, FloatArray &Ddam_Dxi)
 {
+    //PhaseFieldCrossSection *cs = static_cast...  // in the future...
+    
+    //sectionalForcesScal = -kp*neg_Mac(alpha_dot) + g_c/l*d + G'*Psibar 
+    double kp = 1.0e-9;
+    double Delta_t = tStep->giveTimeIncrement();
+    double d       = computeDamageInLayerAt(layer, gp, VM_Total, tStep);
+    double Delta_d = computeDamageInLayerAt(layer, gp, VM_Incremental, tStep);
+    double l       = this->giveInternalLength();
+    double g_c     = this->giveCriticalEnergy();
+    double Gprim   = computeGprimInLayer(layer, gp, VM_Total, tStep);
+    double Psibar  = this->computeFreeEnergy( gp, tStep );
+    
+    sectionalForcesScal = -kp * neg_MaCauley(Delta_d/Delta_t) + g_c / l *d + Gprim * Psibar;
+
+    //sectionalForcesVec = grad(alpha) * g_c * l = [G^1 G^2]*Bd*a * g_c * l
+    FloatArray gradd, temp;
+    FloatMatrix Gcon, Gcon_red;
+    Shell7Base :: evalInitialContravarBaseVectorsAt(*gp->giveCoordinates(), Gcon); //[G^1 G^2 G^3]
+    Gcon_red.beSubMatrixOf(Gcon,1,2,1,2);
+    gradd.beProductOf(Gcon_red, Ddam_Dxi); // [G^1 G^2] * [dalpha/dxi1, dalpha/dxi2]
+    sectionalForcesVec = gradd * g_c * l;
+
+}
+
+void
+Shell7BasePhFi :: computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer)
+{
+    // Returns the  matrix {B} of the receiver, evaluated at aGaussPoint. Such that
+    // B*a = [Dalpha/Dxi1, Dalpha/Dxi2] 
+ 
+    FloatMatrix dNdxi;
+    this->fei->evaldNdxi( dNdxi, lCoords, FEIElementGeometryWrapper(this) );
+    answer.beTranspositionOf(dNdxi);
+
+
+}
+
+void 
+Shell7BasePhFi :: computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer)
+{
+    // Returns the matrix {N} of the receiver, evaluated at aGaussPoint. Such that
+    // N*a = alpha
+ 
+    this->fei->evalN( answer, iLocCoords, FEIElementGeometryWrapper(this) );
+
 }
 
 // Computation of solution vectors
@@ -571,6 +638,21 @@ Shell7BasePhFi :: computeVectorOfDofIDs(const IntArray &dofIdArray, ValueModeTyp
         k += 7;
     }
 }
+
+
+//void
+//Shell7BasePhFi :: giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep)
+//{
+//    // Computes updated solution as: x = X + dx, m = M + dM, gam = 0 + dgam
+//    // This is because the element formulation is in terms of placement and not displacement.
+//    this->giveInitialSolutionVector(answer); // X & M
+//    FloatArray temp;
+//    int dummy = 0;
+//    IntArray dofIdArray;
+//    Shell7Base :: giveDofManDofIDMask(dummy, EID_MomentumBalance, dofIdArray);
+//    this->computeVectorOfDofIDs(dofIdArray, VM_Total, tStep, temp);
+//    answer.assemble( temp, this->giveOrderingPhFi(AllInv) );
+//}
 
 // N and B matrices
 

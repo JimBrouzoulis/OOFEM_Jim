@@ -675,7 +675,7 @@ NRSolver :: checkConvergence(FloatArray &RT, FloatArray &F, FloatArray &rhs,  Fl
     }
 
     if ( internalForcesEBENorm.giveSize() > 1 ) { // Special treatment when just one norm is given; No grouping
-        int nccdg = this->domain->giveMaxDofID();
+        int nccdg = this->domain->giveMaxDofID()+2;
         // Keeps tracks of which dof IDs are actually in use;
         IntArray idsInUse(nccdg);
         idsInUse.zero();

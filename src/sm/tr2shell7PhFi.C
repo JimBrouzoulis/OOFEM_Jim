@@ -45,6 +45,7 @@
 #include "boundaryload.h"
 #include "vtkxmlexportmodule.h"
 #include "classfactory.h"
+#include "tr2shell7.h"
 
 namespace oofem {
 REGISTER_Element(Tr2Shell7PhFi);
@@ -52,7 +53,9 @@ REGISTER_Element(Tr2Shell7PhFi);
 FEI3dTrQuad Tr2Shell7PhFi :: interpolation;
 
 IntArray Tr2Shell7PhFi :: ordering_disp(42);
-
+IntArray Tr2Shell7PhFi :: ordering_disp_inv(42);
+IntArray Tr2Shell7PhFi :: ordering_base(42);
+IntArray Tr2Shell7PhFi :: ordering_base_inv(42); 
 IntArray Tr2Shell7PhFi:: ordering_all(1);
 IntArray Tr2Shell7PhFi:: ordering_damage(1);
 IntArray Tr2Shell7PhFi :: ordering_gr(1);
@@ -67,6 +70,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 	
 	this->ordering_damage.resize(0);
 	this->ordering_gr.resize(0);
+    this->ordering_disp_inv.resize(0);
+
 	IntArray localDam, localDisp(7);	// hard coded for 7 parameter shell!!
 
 	localDam.resize(0);
@@ -74,16 +79,19 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 
 	for (int i = 1; i <= numberOfLayers; i++)
 	{
-		localDam.followedBy(i + this->giveNumberOfuDofs());
+		//localDam.followedBy(i + this->giveNumberOfuDofs());
+        localDam.followedBy(7 + i);
 	}
 
+    int numDofsPerNode = 7 + numberOfLayers;
 
 	for (int i = 1; i <= this->numberOfDofMans; i++)
 	{
 		this->ordering_damage.followedBy(localDam);
 		this->ordering_gr.followedBy(localDisp);
 		this->ordering_gr.followedBy(localDam);
-		
+        this->ordering_disp_inv.followedBy(localDisp);
+
 		localDisp.at(1) += 3;
 		localDisp.at(2) += 3;
 		localDisp.at(3) += 3;
@@ -93,6 +101,7 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 		localDisp.at(7) += 1;
 		
 		localDam.add(numberOfLayers);
+       
 	}
 
 	this->ordering_all.resize(0);
@@ -100,7 +109,44 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
 	this->ordering_all = this->ordering_disp;
 	this->ordering_all.followedBy(ordering_damage);
 
+    
+    // JB - New
 
+    IntArray temp_x(0), temp_m(0), temp_dam(0), local_temp_x(0), local_temp_m(0), local_temp_gam(0), local_temp_dam(0);
+    temp_x.setValues(3, 1, 2, 3);
+    temp_m.setValues(3, 4, 5, 6);
+    int temp_gam = 7;
+
+	for (int i = 1; i <= numberOfLayers; i++) {
+        temp_dam.followedBy(7 + i);
+	}
+
+    for (int i = 1; i <= this->numberOfDofMans; i++)
+	{
+        local_temp_x.followedBy(temp_x);
+        local_temp_m.followedBy(temp_m);
+        local_temp_gam.followedBy(temp_gam);
+        local_temp_dam.followedBy(temp_dam);
+        temp_x.add(numDofsPerNode);
+        temp_m.add(numDofsPerNode);
+        temp_gam +=numDofsPerNode;
+        temp_dam.add(numDofsPerNode);
+    }
+    //local_temp_x.printYourself();
+    //local_temp_m.printYourself();
+    //local_temp_gam.printYourself();
+    //local_temp_dam.printYourself();
+    
+    // Construct the two orddering arrays
+    ordering_disp.resize(0);
+    ordering_damage.resize(0);
+    this->ordering_disp.followedBy(local_temp_x); // xbar field
+    this->ordering_disp.followedBy(local_temp_m); // director field
+    this->ordering_disp.followedBy(local_temp_gam); // gamma field
+    this->ordering_damage = local_temp_dam;
+
+    //ordering_disp.printYourself();
+    //ordering_damage.printYourself();
 }
 
 void
@@ -119,7 +165,8 @@ const IntArray &
 Tr2Shell7PhFi:: giveOrdering(SolutionField fieldType) const
 {
     OOFEM_ERROR("Tr2Shell7PhFi :: giveOrdering not implemented: Use Tr2Shell7PhFi :: giveOrderingPhFi instead");
-		return 0;
+    return 0;
+
 }
 
 
@@ -140,6 +187,18 @@ Tr2Shell7PhFi:: giveOrderingPhFi(SolutionFieldPhFi fieldType) const
     }
 }
 
+const IntArray &
+Tr2Shell7PhFi :: giveOrdering_All() const
+{
+    return this->ordering_base; // When shell7base methods are called this is what is wanted
+}
+
+const IntArray &
+Tr2Shell7PhFi :: giveOrdering_AllInv() const
+{
+    // Same as in Shell7Base 
+    return this->ordering_base_inv;
+}
 
 void
 Tr2Shell7PhFi:: giveLocalNodeCoords(FloatArray &nodeLocalXiCoords, FloatArray &nodeLocalEtaCoords)

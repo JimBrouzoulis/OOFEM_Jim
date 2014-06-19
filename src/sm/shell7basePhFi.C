@@ -77,9 +77,9 @@ Shell7BasePhFi :: postInitialize()
 //    Element :: postInitialize();
     Shell7Base :: postInitialize();
 
-	this->startIDdamage = this->domain->giveNextFreeDofID();
+	this->startIDdamage = this->domain->giveNextFreeDofID(0);
 	
-	if (!this->layeredCS->giveNumberOfLayers() == NULL) {
+	if (!this->layeredCS == NULL) {
 		this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
 	} else {
 		this->endIDdamage = this->startIDdamage + numberOfLayers - 1;

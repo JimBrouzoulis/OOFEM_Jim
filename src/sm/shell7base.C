@@ -456,7 +456,6 @@ Shell7Base :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rMode,
     ///@todo rewrite this method since the XFEM part does not use this anymore
     this->new_computeBulkTangentMatrix(answer, solVec, solVec, solVec, rMode, tStep);
 
-
     // Add contribution due to pressure load ///@todo should later be compted by the load
     int nLoads = this->boundaryLoadArray.giveSize() / 2;
 
@@ -2197,7 +2196,6 @@ Shell7Base :: giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep)
     this->computeVectorOfDofIDs(dofIdArray, VM_Total, tStep, temp);
     //answer.assemble( temp, this->giveOrdering(AllInv) );
     answer.assemble( temp, this->giveOrdering_AllInv() );
-
 }
 
 

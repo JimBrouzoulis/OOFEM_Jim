@@ -71,10 +71,10 @@ protected:
     static IntArray ordering_gr;
     static IntArray ordering_gr_edge;
     static bool initOrdering() {
-		ordering_disp.setValues(42, 1, 2, 3, 8, 9, 10, 15, 16, 17, 22, 23, 24, 29, 30, 31, 36, 37, 38,	// midx_i, midy_i, midz_i..., dirx_i,diry_i,dirz_i, ....,gamma_i
-                               4, 5, 6, 11, 12, 13, 18, 19, 20, 25, 26, 27, 32, 33, 34, 39, 40, 41,
-                               7, 14, 21, 28, 35, 42);
-		
+		//ordering_disp.setValues(42, 1, 2, 3, 8, 9, 10, 15, 16, 17, 22, 23, 24, 29, 30, 31, 36, 37, 38,	// midx_i, midy_i, midz_i..., dirx_i,diry_i,dirz_i, ....,gamma_i
+  //                             4, 5, 6, 11, 12, 13, 18, 19, 20, 25, 26, 27, 32, 33, 34, 39, 40, 41,
+  //                             7, 14, 21, 28, 35, 42);
+		//
 		//ordering_all.setValues(42, 1, 2, 3, 8, 9, 10, 15, 16, 17, 22, 23, 24, 29, 30, 31, 36, 37, 38,	// midx_i, midy_i, midz_i..., dirx_i,diry_i,dirz_i, ....,gamma_i
         //                       4, 5, 6, 11, 12, 13, 18, 19, 20, 25, 26, 27, 32, 33, 34, 39, 40, 41,
         //                       7, 14, 21, 28, 35, 42);
@@ -92,6 +92,8 @@ protected:
 
     virtual const IntArray &giveOrdering_All() const;
     virtual const IntArray &giveOrdering_AllInv() const;
+    virtual const IntArray &giveOrdering_Disp() const;
+    virtual const IntArray &giveOrdering_Damage() const;
 
     //specific
     void giveSurfaceDofMapping(IntArray &answer, int iSurf) const;

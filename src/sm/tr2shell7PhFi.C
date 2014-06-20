@@ -104,8 +104,8 @@ Tr2Shell7PhFi:: Tr2Shell7PhFi(int n, Domain *aDomain) : Shell7BasePhFi(n, aDomai
        
 	}
 
-	this->ordering_all.resize(0);
 
+	this->ordering_all.resize(0);
 	this->ordering_all = this->ordering_disp;
 	this->ordering_all.followedBy(ordering_damage);
 
@@ -199,6 +199,19 @@ Tr2Shell7PhFi :: giveOrdering_AllInv() const
     // Same as in Shell7Base 
     return this->ordering_base_inv;
 }
+
+const IntArray &
+Tr2Shell7PhFi :: giveOrdering_Disp() const
+{
+    return this->ordering_disp; 
+}
+
+const IntArray &
+Tr2Shell7PhFi :: giveOrdering_Damage() const
+{
+    return this->ordering_damage;
+}
+
 
 void
 Tr2Shell7PhFi:: giveLocalNodeCoords(FloatArray &nodeLocalXiCoords, FloatArray &nodeLocalEtaCoords)

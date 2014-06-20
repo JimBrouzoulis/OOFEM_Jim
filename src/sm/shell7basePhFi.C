@@ -97,28 +97,6 @@ Shell7BasePhFi :: giveOrdering(SolutionField fieldType) const
 	return 0;
 }
 
-//Interface *Shell7BasePhFi :: giveInterface(InterfaceType it)
-//{
-//    switch ( it ) {
-//    case NodalAveragingRecoveryModelInterfaceType:
-//        return static_cast< NodalAveragingRecoveryModelInterface * >( this );
-//
-//    case LayeredCrossSectionInterfaceType:
-//        return static_cast< LayeredCrossSectionInterface * >( this );
-//
-//    case VTKXMLExportModuleElementInterfaceType:
-//        return static_cast< VTKXMLExportModuleElementInterface * >( this );
-//
-//    case ZZNodalRecoveryModelInterfaceType:
-//        return static_cast< ZZNodalRecoveryModelInterface * >( this );
-//
-//    case FailureModuleElementInterfaceType:
-//        return static_cast< FailureModuleElementInterface * >( this );
-//
-//    default:
-//        return StructuralElement :: giveInterface(it);
-//    }
-//}
 
 void
 Shell7BasePhFi :: giveDofManDofIDMask(int inode, EquationID ut, IntArray &answer) const
@@ -201,6 +179,7 @@ Shell7BasePhFi :: computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeTyp
 
 	dVecRed.beSubArrayOf(dVec, indx);
     this->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(this));		// @todo anything strange here!!!!???
+    //printf("mupp %e \n",Nvec.dotProduct(dVecRed));
     return Nvec.dotProduct(dVecRed);
 }
 
@@ -265,42 +244,6 @@ Shell7BasePhFi :: computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode
 	Shell7Base :: computeStiffnessMatrix(answer, rMode, tStep);
 }
 
-#if 0
-void
-Shell7BasePhFi :: computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep)
-{
-
-    int ndofs = this->giveNumberOfuDofs();
-    answer.resize(ndofs, ndofs);
-    answer.zero();
-    
-    FloatArray solVec, totalSolVec;
-    this->giveUpdatedSolutionVector(totalSolVec, tStep);  
-    this->giveUpdatedSolutionVector(solVec, tStep); // a
-    
-    // first 'solVec' corresponds to the point where the tangent i evaluated and solVecLeft, solVecRight
-    // corresponds to the solution used for evaluation of the lambda matrices
-    ///@todo rewrite this method since the XFEM part does not use this anymore
-    this->new_computeBulkTangentMatrix(answer, solVec, solVec, solVec, rMode, tStep);		//@todo: Modify to include damage!!!!
-
-
-    // Add contribution due to pressure load ///@todo should later be compted by the load
-    int nLoads = this->boundaryLoadArray.giveSize() / 2;
-
-    for ( int i = 1; i <= nLoads; i++ ) {     // For each pressure load that is applied
-        int load_number = this->boundaryLoadArray.at(2 * i - 1);
-        int iSurf = this->boundaryLoadArray.at(2 * i);         // load_id
-        Load *load = this->domain->giveLoad(load_number);
-
-        if ( dynamic_cast< ConstantPressureLoad * >( load ) ) {
-            FloatMatrix K_pressure;
-            this->computePressureTangentMatrix(K_pressure, load, iSurf, tStep);
-            answer.add(K_pressure); // Should assemble with ordering
-        }
-    }
-
-}
-#endif
 
 void
 Shell7BasePhFi :: computeStiffnessMatrix_ud(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) {
@@ -331,17 +274,11 @@ Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode
 void
 Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) 
 {
-    //set displacement and nonlocal location array
-    ///@todo this part is enough to do once
-    //IntArray IdMask_u, IdMask_d;
-    //this->giveDofManDofIDMask_u( IdMask_u );
-    //this->giveDofManDofIDMask_d( IdMask_d );
-    //this->computeLocationArrayOfDofIDs( IdMask_u, loc_u );		//@todo: needs to be defined??
-    //this->computeLocationArrayOfDofIDs( IdMask_d, loc_d );		//@todo: needs to be defined??
 
 	IntArray loc_u, loc_d;
-	loc_u = giveOrderingPhFi(Displacement);
-	loc_d = giveOrderingPhFi(Damage);
+    loc_u = this->giveOrdering_Disp();
+	loc_d = this->giveOrdering_Damage();
+
 
     int nDofs = this->computeNumberOfDofs();
     answer.resize( nDofs, nDofs );
@@ -365,6 +302,8 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
 void
 Shell7BasePhFi :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &solVec, FloatArray &solVecI, FloatArray &solVecJ, MatResponseMode rMode, TimeStep *tStep)
 {
+    //Shell7Base :: new_computeBulkTangentMatrix(answer, solVec, solVecI, solVecJ,rMode, tStep);
+    //return;
     //@todo optimize method - remove I,J-stuff since XFEM does not need this anymore
     FloatMatrix A [ 3 ] [ 3 ], lambdaI [ 3 ], lambdaJ [ 3 ];
     FloatMatrix L(18,18), B;
@@ -424,10 +363,10 @@ Shell7BasePhFi :: new_computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &
         }
     }
 
-    //const IntArray &ordering = this->giveOrderingPhFi(Displacement);		// @todo: defined in the actual element!!!!
-    const IntArray &ordering = this->giveOrdering_All();
-    answer.assemble(tempAnswer, ordering, ordering);
-
+    //@todo Note! Since this block matrix is assembled outside this method with ordering_disp no assembly should be made inside here (=> double assembly) JB
+    //const IntArray &ordering = this->giveOrdering_All();
+    //answer.assemble(tempAnswer, ordering, ordering);
+    answer = tempAnswer;
 }
 
 #if 0
@@ -470,7 +409,7 @@ Shell7BasePhFi :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, 
 
     FloatArray solVec_u, solVec_d, solVec;
     this->giveUpdatedSolutionVector(solVec, tStep); // placement vector x
-
+    //solVec.printYourself();
 	//this->giveUpdatedSolutionVector_d(solVec_d, tStep); // damage vector, one component per layer
 	
 	//solVec.resize(solVec_u.giveSize() + solVec_d.giveSize());
@@ -494,8 +433,6 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
     FloatArray genEps, genEpsD, totalSolVec, lCoords, Nd;
     FloatMatrix B, Bd;
     this->giveUpdatedSolutionVector(totalSolVec, tStep);    // => x, m, gam
-
-    ///@todo For multiscale: This integration should be changed to a surface integration and 'sectionalForces' should be given by the RVE problem 
 
     fu.zero();
     for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
@@ -547,10 +484,10 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
 	const IntArray &ordering_damage = this->giveOrderingPhFi(Damage);
     answer.assemble(fu, ordering_disp);		//ordering_disp contains only displacement related dofs, not damage
 	answer.assemble(fd, ordering_damage);
-    ordering_disp.printYourself();
-    fu.printYourself();
+    //ordering_disp.printYourself();
+    //fu.printYourself();
     //fd.printYourself();
-
+    //answer.printYourself();
 }
 
 
@@ -678,95 +615,6 @@ computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer) //@todo: def
 	answer.zero();
 
 }
-
-#if 0
-void
-Shell7BasePhFi :: computeBmatrixAt(FloatArray &lcoords, FloatMatrix &answer, int li, int ui)
-{
-    // Returns the  matrix {B} of the receiver, evaluated at aGaussPoint. Such that
-    // B*a = [dxbar_dxi, dwdxi, w, dgamdxi, gam]^T, where a is the vector of unknowns
- 
-    int ndofs = Shell7BasePhFi :: giveNumberOfDofs();
-    int ndofs_xm  = 3 * this->giveNumberOfDofManagers();
-    answer.resize(18, ndofs);
-    answer.zero();
-    FloatArray N;
-    FloatMatrix dNdxi;
-    this->fei->evalN( N, lcoords, FEIElementGeometryWrapper(this) );
-    this->fei->evaldNdxi( dNdxi, lcoords, FEIElementGeometryWrapper(this) );
-
-    /*    18   18   6
-     * 6 [B_u   0   0
-     * 6   0   B_w  0
-     * 3   0   N_w  0
-     * 2   0    0  B_gam
-     * 1   0    0  N_gam]
-     */
-    int ndofman = this->giveNumberOfDofManagers();
-
-    // First column
-    for ( int i = 1, j = 0; i <= ndofman; i++, j += 3 ) {
-        answer.at(1, 1 + j) = dNdxi.at(i, 1);
-        answer.at(2, 2 + j) = dNdxi.at(i, 1);
-        answer.at(3, 3 + j) = dNdxi.at(i, 1);
-        answer.at(4, 1 + j) = dNdxi.at(i, 2);
-        answer.at(5, 2 + j) = dNdxi.at(i, 2);
-        answer.at(6, 3 + j) = dNdxi.at(i, 2);
-    }
-
-    // Second column
-    for ( int i = 1, j = 0; i <= ndofman; i++, j += 3 ) {
-        answer.at(7, ndofs_xm + 1 + j) = dNdxi.at(i, 1);
-        answer.at(8, ndofs_xm + 2 + j) = dNdxi.at(i, 1);
-        answer.at(9, ndofs_xm + 3 + j) = dNdxi.at(i, 1);
-        answer.at(10, ndofs_xm + 1 + j) = dNdxi.at(i, 2);
-        answer.at(11, ndofs_xm + 2 + j) = dNdxi.at(i, 2);
-        answer.at(12, ndofs_xm + 3 + j) = dNdxi.at(i, 2);
-        answer.at(13, ndofs_xm + 1 + j) = N.at(i);
-        answer.at(14, ndofs_xm + 2 + j) = N.at(i);
-        answer.at(15, ndofs_xm + 3 + j) = N.at(i);
-    }
-
-    // Third column
-    for ( int i = 1, j = 0; i <= ndofman; i++, j += 1 ) {
-        answer.at(16, ndofs_xm * 2 + 1 + j) = dNdxi.at(i, 1);
-        answer.at(17, ndofs_xm * 2 + 1 + j) = dNdxi.at(i, 2);
-        answer.at(18, ndofs_xm * 2 + 1 + j) = N.at(i);
-    }
-}
-
-
-void
-Shell7BasePhFi :: computeNmatrixAt(const FloatArray &iLocCoord, FloatMatrix &answer)
-{
-    // Returns the displacement interpolation matrix {N} of the receiver,
-    // evaluated at aGaussPoint.
-
-    int ndofs = Shell7BasePhFi :: giveNumberOfDofs();
-    int ndofs_xm  = 3 * this->giveNumberOfDofManagers();
-    answer.resize(7, ndofs);
-    answer.zero();
-    FloatArray N;
-    this->fei->evalN( N, iLocCoord, FEIElementGeometryWrapper(this) );
-    
-    /*   nno*3 nno*3 nno
-     * 3 [N_x   0    0
-     * 3   0   N_m   0
-     * 1   0    0  N_gmm ]
-     */
-    for ( int i = 1, j = 0; i <= this->giveNumberOfDofManagers(); i++, j += 3 ) {
-        answer.at(1, 1 + j) = N.at(i);
-        answer.at(2, 2 + j) = N.at(i);
-        answer.at(3, 3 + j) = N.at(i);
-        answer.at(4, ndofs_xm + 1 + j) = N.at(i);
-        answer.at(5, ndofs_xm + 2 + j) = N.at(i);
-        answer.at(6, ndofs_xm + 3 + j) = N.at(i);
-        answer.at(7, ndofs_xm * 2 + i) = N.at(i);
-    }
-}
-
-#endif
-
 
 
 // VTK export

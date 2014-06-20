@@ -118,7 +118,8 @@ protected:
 
     virtual const IntArray &giveOrdering(SolutionField fieldType) const;
 	virtual const IntArray &giveOrderingPhFi(SolutionFieldPhFi fieldType) const = 0;
-
+    virtual const IntArray &giveOrdering_Disp() const = 0;
+    virtual const IntArray &giveOrdering_Damage() const = 0;
     virtual IRResultType initializeFrom(InputRecord *ir);
 
     // Tangent matrices
@@ -154,15 +155,6 @@ protected:
     void giveUpdatedSolutionVector_d(FloatArray &answer, TimeStep *tStep);
     //void giveUnknownsAt(FloatArray &lcoords, FloatArray &solVec, FloatArray &x, FloatArray &m, double gam, TimeStep *tStep);
 
-    // Nodal averaging interface:
-    //virtual void NodalAveragingRecoveryMI_computeNodalValue(FloatArray &answer, int node, InternalStateType type, TimeStep *tStep);
-    //virtual void NodalAveragingRecoveryMI_computeSideValue(FloatArray &answer, int side, InternalStateType type, TimeStep *tStep);
-
-    // ZZ recovery
-    //virtual void ZZNodalRecoveryMI_ComputeEstimatedInterpolationMtrx(FloatArray &answer, GaussPoint *gp, InternalStateType type);
-    //void NodalRecoveryMI_computeNValProduct(FloatMatrix &answer, int layer, InternalStateType type, TimeStep *tStep);
-    //void NodalRecoveryMI_computeNNMatrix(FloatArray &answer, int layer, InternalStateType type);
-    //void NodalRecoveryMI_recoverValues(std::vector<FloatArray> &recoveredValues, int layer, InternalStateType type, TimeStep *tStep);
 
     // VTK interface
         

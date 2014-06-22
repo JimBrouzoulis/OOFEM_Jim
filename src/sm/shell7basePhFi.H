@@ -74,11 +74,11 @@ public:
     virtual void giveDofManDofIDMask_d(IntArray &answer) const;
 	//virtual void giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep);
     
-    double computeDamageAt(GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 
 	double computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 	double computeGprimInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
-	double computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+	double computeGbisInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+    double computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 	IntArray computeDamageIndexArray(int layer);
 
 	virtual int computeNumberOfDofs() { return this->giveNumberOfDofs(); }
@@ -100,6 +100,7 @@ public:
 	virtual Element *ZZNodalRecoveryMI_giveElement() { return this; }
 
     double neg_MaCauley(double par);
+    double neg_MaCauleyPrime(double par);
 
 protected:
 
@@ -116,7 +117,12 @@ protected:
 
 	int numberOfLayers;
 
-    virtual const IntArray &giveOrdering(SolutionField fieldType) const;
+    virtual const IntArray &giveOrdering(SolutionField fieldType) const 
+    { 
+        OOFEM_ERROR("Shell7BasePhFi :: giveOrdering not implemented: Use Shell7BasePhFi :: giveOrderingPhFi instead");
+	    return 0; 
+    };
+    
 	virtual const IntArray &giveOrderingPhFi(SolutionFieldPhFi fieldType) const = 0;
     virtual const IntArray &giveOrdering_Disp() const = 0;
     virtual const IntArray &giveOrdering_Damage() const = 0;
@@ -132,9 +138,8 @@ protected:
     void computeStiffnessMatrix_du(FloatMatrix &answer, MatResponseMode, TimeStep *);
 
     // Internal forces
-	void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord);
-    void computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord = 0);
-	void computeSectionalForcesAt_d(double ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer, FloatArray &Ddam_Dxi);
+    virtual void computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord = 0);
+	virtual void computeSectionalForcesAt_d(double &ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer, FloatArray &Ddam_Dxi);
 
 
     // External forces
@@ -159,7 +164,7 @@ protected:
     // VTK interface
         
     //virtual void giveCompositeExportData(std::vector< VTKPiece > &vtkPieces, IntArray &primaryVarsToExport, IntArray &internalVarsToExport, IntArray cellVarsToExport, TimeStep *tStep );
-    //virtual void giveShellExportData(VTKPiece &vtkPiece, IntArray &primaryVarsToExport, IntArray &internalVarsToExport, IntArray cellVarsToExport, TimeStep *tStep );
+    virtual void giveShellExportData(VTKPiece &vtkPiece, IntArray &primaryVarsToExport, IntArray &internalVarsToExport, IntArray cellVarsToExport, TimeStep *tStep );
     
     
 //    void recoverValuesFromIP(std::vector<FloatArray> &nodes, int layer, InternalStateType type, TimeStep *tStep);
@@ -169,9 +174,10 @@ protected:
     // N and B matrices
 	virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
 
-	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer); //@todo: define for damage
+	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer);
 
-	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer); //@todo: define for damage
+	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer);
+    virtual void computeNdMatrixAt(const FloatArray &iLocCoords, FloatMatrix &answer); // same as vector but saved as a FloatMatrix
 
     // Misc
     //virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);

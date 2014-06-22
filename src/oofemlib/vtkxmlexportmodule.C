@@ -813,7 +813,7 @@ VTKXMLExportModule :: giveDataHeaders(std :: string &pointHeader, std :: string 
         if ( ( type == DisplacementVector ) || ( type == EigenVector ) || ( type == VelocityVector ) || ( type == DirectorField ) ) {
             vectors += __UnknownTypeToString(type);
             vectors.append(" ");
-        } else if ( ( type == FluxVector ) || ( type == PressureVector ) || ( type == Temperature ) ) {
+        } else if ( ( type == FluxVector ) || ( type == PressureVector ) || ( type == Temperature ) || ( type == ScalarDamage ) ) {
             scalars += __UnknownTypeToString(type);
             scalars.append(" ");
         } else {

@@ -53,8 +53,9 @@ PhaseFieldElement::PhaseFieldElement( int i, Domain *aDomain )
 {  
     ///@todo will be set by the cross section later
     internalLength = 6.0;
-    criticalEnergy = 1.0e0;
+    criticalEnergy = 1.0e3;
     relaxationTime = 1.0;
+    penaltyParameter = 1.0e3;
 };
 
 void
@@ -426,7 +427,7 @@ PhaseFieldElement :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseM
         this->computeNd_matrixAt(*gp->giveCoordinates(), N_d);
         this->computeBd_matrixAt(gp, B_d, 1, 3);
         
-        double Gprim = this->computeGPrim(gp, VM_Total, tStep);
+        //double Gprim = this->computeGPrim(gp, VM_Total, tStep);
         
         double psiBar = this->computeFreeEnergy( gp, tStep );
         //double factorN = t_star/Delta_t + g_c/l + psiBar*Gbis;

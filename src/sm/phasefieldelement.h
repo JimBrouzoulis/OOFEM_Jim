@@ -76,6 +76,8 @@ public:
     double giveCriticalEnergy() { return criticalEnergy; };
     double relaxationTime;
     double giveRelaxationTime( ) { return relaxationTime; };
+    double penaltyParameter;
+    double givePenaltyParameter() { return penaltyParameter; };
 
 protected:
 

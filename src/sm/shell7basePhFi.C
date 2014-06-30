@@ -526,8 +526,13 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
             //sectionalForces_dv.printYourself();
             //printf("sec force %e \n", sectionalForces_ds);
             //printf("\n");
-            ftemp_d.add( sectionalForces_ds*dV,  Nd );
-			ftemp_d.plusProduct(Bd, sectionalForces_dv, dV);
+			FloatMatrix Gcon, Gcon_red, BdX;
+			Shell7Base :: evalInitialContravarBaseVectorsAt(*gp->giveCoordinates(), Gcon); //[G^1 G^2 G^3]
+			Gcon_red.beSubMatrixOf(Gcon,1,2,1,2);
+            BdX.beProductOf(Gcon_red,Bd);
+
+			ftemp_d.add( sectionalForces_ds*dV,  Nd );
+			ftemp_d.plusProduct(BdX, sectionalForces_dv, dV);
 
         }
         // Assemble layer contribution into the correct place
@@ -583,6 +588,7 @@ Shell7BasePhFi :: computeSectionalForcesAt_d(double &sectionalForcesScal, FloatA
     Shell7Base :: evalInitialContravarBaseVectorsAt(*gp->giveCoordinates(), Gcon); //[G^1 G^2 G^3]
     Gcon_red.beSubMatrixOf(Gcon,1,2,1,2);
     gradd.beProductOf(Gcon_red, Ddam_Dxi); // [G^1 G^2] * [dalpha/dxi1, dalpha/dxi2]
+	//gradd.printYourself();
     sectionalForcesVec = gradd * g_c * l;
 
 }

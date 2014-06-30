@@ -309,7 +309,6 @@ Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode
     double g_c     = this->giveCriticalEnergy();
     double kp      = this->givePenaltyParameter();
     double Delta_t = tStep->giveTimeIncrement();
-    FloatMatrix Gcon, Gcon_red, GBd;
 
     for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
         temp.zero();
@@ -334,13 +333,10 @@ Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode
             temp.plusProductSymmUpper(Nd, Nd, factorN * dV);
             
 
-            // K_dd2 = g_c * l * (Bd^t * G^t) * (G * Bd) = g_c * l * (G * Bd)^t * (G * Bd);
-            Shell7Base :: evalInitialContravarBaseVectorsAt(*gp->giveCoordinates(), Gcon); //[G^1 G^2 G^3]
-            Gcon_red.beSubMatrixOf(Gcon,1,2,1,2); // [G^1 G^2]
-            GBd.beProductOf(Gcon_red, Bd); // [G^1 G^2] * Bd
+            // K_dd2 = g_c * l * (Bd^t * G^t) * (G * Bd) = g_c * l * (G * Bd)^t * (G * Bd); // OLD
+            // K_dd2 =  g_c * l * Bd^t * G * Bd;
             double factorB = g_c * l;
-            temp.plusProductSymmUpper(GBd, GBd, factorB * dV);
-
+            temp.plusProductSymmUpper(Bd, Bd, factorB * dV);
         }
         temp.symmetrized();
         answer.assemble(temp, indx_d, indx_d);
@@ -496,18 +492,19 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
         IntegrationRule *iRuleL = integrationRulesArray [ layer - 1 ];
         Material *mat = domain->giveMaterial( this->layeredCS->giveLayerMaterial(layer) );
 		IntArray indx_d = computeDamageIndexArray(layer);
-        FloatArray dVecTotal, dVecLayer, Ddam_Dxi;
+        FloatArray dVecTotal, dVecLayer, Ddam_Dxi, gradd;
 	
         this->computeDamageUnknowns(dVecTotal, VM_Total, tStep);		// vector with all damage nodal values for this element
 	    dVecLayer.beSubArrayOf(dVecTotal, indx_d);                      // vector of damage variables for a given layer        
-        dVecLayer.printYourself();
+        //dVecLayer.printYourself();
         for ( int j = 1; j <= iRuleL->giveNumberOfIntegrationPoints(); j++ ) {
             GaussPoint *gp = iRuleL->getIntegrationPoint(j - 1);
             lCoords = *gp->giveCoordinates();
             this->computeBmatrixAt(lCoords, B);
 			this->computeBdmatrixAt(lCoords, Bd);      // (2x6)
 			this->computeNdvectorAt(lCoords, Nd); // (1x6)
-            Ddam_Dxi.beProductOf(Bd,dVecLayer);        // [dalpha/dxi1, dalpha/dxi2]
+            //Ddam_Dxi.beProductOf(Bd,dVecLayer);        // [dalpha/dxi1, dalpha/dxi2] OLD
+            gradd.beProductOf(Bd,dVecLayer);        // [dalpha/dX1, dalpha/dX2]
 
             this->computeGeneralizedStrainVectorNew(genEpsD, solVec, B);
             this->computeGeneralizedStrainVectorNew(genEps, totalSolVec, B); // used for computing the stress
@@ -522,25 +519,18 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
 			fu.add(dV*g, ftemp_u);
 
             // Computation of sectional forces: fd = Nd^t * sectionalForces_ds + Bd^t * sectionalForces_dv 
-            this->computeSectionalForcesAt_d(sectionalForces_ds, sectionalForces_dv, gp, mat, tStep, zeta, layer, Ddam_Dxi); // these are per unit volume
-            //sectionalForces_dv.printYourself();
-            //printf("sec force %e \n", sectionalForces_ds);
-            //printf("\n");
-			FloatMatrix Gcon, Gcon_red, BdX;
-			Shell7Base :: evalInitialContravarBaseVectorsAt(*gp->giveCoordinates(), Gcon); //[G^1 G^2 G^3]
-			Gcon_red.beSubMatrixOf(Gcon,1,2,1,2);
-            BdX.beProductOf(Gcon_red,Bd);
+            //this->computeSectionalForcesAt_d(sectionalForces_ds, sectionalForces_dv, gp, mat, tStep, zeta, layer, Ddam_Dxi); // these are per unit volume // OLD
+            this->computeSectionalForcesAt_d(sectionalForces_ds, sectionalForces_dv, gp, mat, tStep, zeta, layer, gradd); // these are per unit volume
 
 			ftemp_d.add( sectionalForces_ds*dV,  Nd );
-			ftemp_d.plusProduct(BdX, sectionalForces_dv, dV);
+			//ftemp_d.plusProduct(BdX, sectionalForces_dv, dV); // OLD
+            ftemp_d.plusProduct(Bd, sectionalForces_dv, dV);
 
         }
         // Assemble layer contribution into the correct place
         fd.assemble(ftemp_d, indx_d);
-        //ftemp_d.printYourself();
-        //fd.printYourself();
     }
-    printf("\n");
+
     answer.resize( ndofs );
     answer.zero();
     const IntArray &ordering_disp   = this->giveOrderingPhFi(Displacement);
@@ -564,8 +554,10 @@ Shell7BasePhFi :: neg_MaCauleyPrime(double par)
 }
 
 void
+//Shell7BasePhFi :: computeSectionalForcesAt_d(double &sectionalForcesScal, FloatArray &sectionalForcesVec, IntegrationPoint *gp,
+//                                            Material *mat, TimeStep *tStep, double zeta, int layer, FloatArray &Ddam_Dxi)
 Shell7BasePhFi :: computeSectionalForcesAt_d(double &sectionalForcesScal, FloatArray &sectionalForcesVec, IntegrationPoint *gp,
-                                            Material *mat, TimeStep *tStep, double zeta, int layer, FloatArray &Ddam_Dxi)
+                                            Material *mat, TimeStep *tStep, double zeta, int layer, FloatArray &gradd)
 {
     //PhaseFieldCrossSection *cs = static_cast...  // in the future...
     
@@ -580,19 +572,13 @@ Shell7BasePhFi :: computeSectionalForcesAt_d(double &sectionalForcesScal, FloatA
     double Psibar  = this->computeFreeEnergy( gp, tStep );
     
     sectionalForcesScal = -kp * neg_MaCauley(Delta_d/Delta_t) + g_c / l * d + Gprim * Psibar;
-    //printf("free energy %e \n",Psibar);
-    //printf("sec force %e \n", sectionalForcesScal);
-    //sectionalForcesVec = grad(alpha) * g_c * l = [G^1 G^2]*Bd*a * g_c * l
-    FloatArray gradd, temp;
-    FloatMatrix Gcon, Gcon_red;
-    Shell7Base :: evalInitialContravarBaseVectorsAt(*gp->giveCoordinates(), Gcon); //[G^1 G^2 G^3]
-    Gcon_red.beSubMatrixOf(Gcon,1,2,1,2);
-    gradd.beProductOf(Gcon_red, Ddam_Dxi); // [G^1 G^2] * [dalpha/dxi1, dalpha/dxi2]
-	//gradd.printYourself();
+  
+    //sectionalForcesVec = grad(alpha) * g_c * l
     sectionalForcesVec = gradd * g_c * l;
 
 }
 
+#if 0
 void
 Shell7BasePhFi :: computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer)
 {
@@ -605,6 +591,28 @@ Shell7BasePhFi :: computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer)
 
 
 }
+
+#else
+
+void
+Shell7BasePhFi :: computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer)
+{
+    // Returns the  matrix {B} of the receiver, evaluated at aGaussPoint. Such that
+    // B*a = [Dalpha/DX1, Dalpha/DX2] 
+ 
+    FloatMatrix dNdxi;
+    this->fei->evaldNdxi( dNdxi, lCoords, FEIElementGeometryWrapper(this) );
+
+    FloatMatrix Gcon, Gcon_red, temp;
+    Shell7Base :: evalInitialContravarBaseVectorsAt(lCoords, Gcon); //[G^1 G^2 G^3]
+    Gcon_red.beSubMatrixOf(Gcon,1,2,1,2);
+    
+    temp.beTranspositionOf(dNdxi);
+    answer.beProductOf(Gcon_red, temp); // dN/dX = [G^1 G^2] * dN/dxi 
+
+}
+
+#endif
 
 void 
 Shell7BasePhFi :: computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer)

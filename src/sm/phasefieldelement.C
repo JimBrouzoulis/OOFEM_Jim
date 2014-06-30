@@ -53,7 +53,7 @@ PhaseFieldElement::PhaseFieldElement( int i, Domain *aDomain )
 {  
     ///@todo will be set by the cross section later
     internalLength = 6.0;
-    criticalEnergy = 1.0e3;
+    criticalEnergy = 1.0e2;
     relaxationTime = 1.0;
     penaltyParameter = 1.0e3;
 };

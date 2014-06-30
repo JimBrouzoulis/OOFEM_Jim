@@ -55,7 +55,7 @@
 
 namespace oofem {
 
-const int nLayers = 2;
+const int nLayers = 2; //@todo: Generalize!
 
 Shell7BasePhFi :: Shell7BasePhFi(int n, Domain *aDomain) : Shell7Base(n, aDomain), PhaseFieldElement(n, aDomain){
 	this->numberOfLayers = nLayers;
@@ -74,18 +74,6 @@ Shell7BasePhFi :: postInitialize()
 {
     
     Shell7Base :: postInitialize();
-
-	//this->startIDdamage = this->domain->giveNextFreeDofID(0);
-	//
-	//if (!this->layeredCS->giveNumberOfLayers() == NULL) {
-	//	this->endIDdamage = this->startIDdamage + this->layeredCS->giveNumberOfLayers() - 1;
-	//} else {
-	//	this->endIDdamage = this->startIDdamage + numberOfLayers - 1;
-	//}
-	
-
-    //this->giveDomain()->setNextFreeDofID(this->domain->giveNextFreeDofID(0) + numberOfLayers);
-    //this->giveDomain()->setNextFreeDofID(23 + numberOfLayers);
 
 }
 
@@ -133,7 +121,16 @@ Shell7BasePhFi :: computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeTyp
 
 	dVecRed.beSubArrayOf(dVec, indx);
     this->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(this));
-    return Nvec.dotProduct(dVecRed);
+    
+    // Make sure returned damage is always between [0,1]
+    double d_temp = Nvec.dotProduct(dVecRed);
+    if ( d_temp < 0.0 ) {
+        return 0.0;
+    } else if ( d_temp > 1.0 ) {
+        return 1.0;
+    } else {
+        return d_temp;
+    }
 }
 
 IntArray
@@ -158,7 +155,9 @@ Shell7BasePhFi  :: computeGInLayer(int layer, GaussPoint *gp, ValueModeType valu
     // computes g = (1-d)^2 + r0
     double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
     double r0 = 1.0e-10;
-    return (1.0 - d) * (1.0 - d) + r0;
+
+    return (1.0 - d) * (1.0 - d) + r0;  
+    
 }
 
 double 
@@ -167,14 +166,23 @@ Shell7BasePhFi  :: computeGprimInLayer(int layer, GaussPoint *gp, ValueModeType 
     // compute g' =-2*(1-d)
     double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
     return -2.0 * (1.0 - d);
+    
 }
 
 double 
 Shell7BasePhFi  :: computeGbisInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN)
 {
-    // compute D(-2*(1-d))/Dd = 2 
+    // compute g'' = D(-2*(1-d))/Dd = 2 
     //@todo this method is trivial but here if one wants to change the expression for g
-    return 2.0;
+    //return 2.0;
+    double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
+    if ( d < 0.0 ) {
+        return 0.0;
+    } else if ( d > 1.0 ) {
+        return 0.0;
+    } else {
+        return 2.0;
+    }
 }
 
 int
@@ -277,7 +285,7 @@ Shell7BasePhFi :: computeStiffnessMatrix_du(FloatMatrix &answer, MatResponseMode
 void
 Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep) 
 {    
-    // Computation of tangent: K_dd = \int Nd^t * ( -kp*neg_Mac'(alpha_dot) + g_c/l*d + G''*Psibar) * Nd + 
+    // Computation of tangent: K_dd = \int Nd^t * ( -kp*neg_Mac'(alpha_dot)/delta_t + g_c/l + G''*Psibar) * Nd + 
     //                                \int Bd^t * (  g_c * l * [G^1 G^2]^t * [G^1 G^2] ) * Bd 
     //                              = K_dd1 + K_dd2
     int ndofs   = Shell7BasePhFi :: giveNumberOfDofs();
@@ -320,9 +328,9 @@ Shell7BasePhFi :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode
             double dV = this->computeVolumeAroundLayer(gp, layer);
             
 
-            // K_dd1 = ( -kp*neg_Mac'(d_dot)+  g_c/ l + G'' ) * Psibar * N^t*N; 
+            // K_dd1 = ( -kp*neg_Mac'(d_dot) / Delta_t + g_c/ l + G'' ) * Psibar * N^t*N; 
             double Delta_d = computeDamageInLayerAt(layer, gp, VM_Incremental, tStep);
-            double factorN = -kp * neg_MaCauleyPrime(Delta_d/Delta_t) +  g_c / l + Gbis * Psibar; 
+            double factorN = -kp * neg_MaCauleyPrime(Delta_d/Delta_t)/Delta_t +  g_c / l + Gbis * Psibar; 
             temp.plusProductSymmUpper(Nd, Nd, factorN * dV);
             
 
@@ -492,7 +500,7 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
 	
         this->computeDamageUnknowns(dVecTotal, VM_Total, tStep);		// vector with all damage nodal values for this element
 	    dVecLayer.beSubArrayOf(dVecTotal, indx_d);                      // vector of damage variables for a given layer        
-
+        dVecLayer.printYourself();
         for ( int j = 1; j <= iRuleL->giveNumberOfIntegrationPoints(); j++ ) {
             GaussPoint *gp = iRuleL->getIntegrationPoint(j - 1);
             lCoords = *gp->giveCoordinates();
@@ -524,7 +532,7 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
         }
         // Assemble layer contribution into the correct place
         fd.assemble(ftemp_d, indx_d);
-        ftemp_d.printYourself();
+        //ftemp_d.printYourself();
         //fd.printYourself();
     }
     printf("\n");

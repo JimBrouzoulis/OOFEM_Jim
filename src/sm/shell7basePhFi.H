@@ -76,9 +76,12 @@ public:
     
 
 	double computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+	double computeGInLayer_dist(int layer, int indx, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 	double computeGprimInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+	double computeGprimInLayer_dist(int layer, int indx, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 	double computeGbisInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     double computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+	double computeDamageInLayerAt_dist(int layer, int indx, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 	IntArray computeDamageIndexArray(int layer);
 
 	virtual int computeNumberOfDofs() { return this->giveNumberOfDofs(); }
@@ -134,12 +137,16 @@ protected:
 
     void computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode, TimeStep *);
     void computeStiffnessMatrix_ud(FloatMatrix &answer, MatResponseMode, TimeStep *);
+	void computeStiffnessMatrixNum_ud(FloatMatrix &answer, MatResponseMode, TimeStep *);
+	void computeStiffnessMatrixNum_dd(FloatMatrix &answer, MatResponseMode, TimeStep *);
     void computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode, TimeStep *);
     void computeStiffnessMatrix_du(FloatMatrix &answer, MatResponseMode, TimeStep *);
 
     // Internal forces
     virtual void computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord = 0);
+    virtual void computeSectionalForces_dist(FloatArray &answer, int indx, TimeStep *tStep, FloatArray &solVec, int useUpdatedGpRecord = 0);
 	virtual void computeSectionalForcesAt_d(double &ans_scalar, FloatArray &answer, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer, FloatArray &Ddam_Dxi);
+	virtual void computeSectionalForcesAt_d_dist(double &ans_scalar, FloatArray &answer, int indx, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer, FloatArray &Ddam_Dxi);
 
 
     // External forces

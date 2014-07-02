@@ -126,15 +126,43 @@ Shell7BasePhFi :: computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeTyp
     
     // Make sure returned damage is always between [0,1]
     double d_temp = Nvec.dotProduct(dVecRed);
-    if ( d_temp < 0.0 ) {
-        return 0.0;
-    } else if ( d_temp > 1.0 ) {
-        return 1.0;
-    } else {
+    //if ( d_temp < 0.0 ) {
+    //    return 0.0;
+    //} else if ( d_temp > 1.0 ) {
+    //    return 1.0;
+    //} else {
         return d_temp;
-    }
+    //}
 }
 
+double 
+Shell7BasePhFi :: computeOldDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN)
+{
+    // d = N_d * a_d
+    FloatArray dVec, dVecRed, ddVec;
+	
+    this->computeDamageUnknowns(dVec, valueMode, stepN);		// should be a vector with all damage nodal values for this element
+																// ordered such that all damage dofs associated with node 1 comes first
+	this->computeDamageUnknowns(ddVec, VM_Incremental, stepN);
+
+	dVec.subtract(ddVec);
+
+    FloatArray Nvec, lcoords;					
+	IntArray indx = computeDamageIndexArray(layer);         // Since dVec only contains damage vars this index vector should be 1 3 5 7 9 11 for the first layer (with 2 layers in the cs)
+
+	dVecRed.beSubArrayOf(dVec, indx);
+    this->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(this));
+    
+    // Make sure returned damage is always between [0,1]
+    double d_temp = Nvec.dotProduct(dVecRed);
+    //if ( d_temp < 0.0 ) {
+    //    return 0.0;
+    //} else if ( d_temp > 1.0 ) {
+    //    return 1.0;
+    //} else {
+        return d_temp;
+    //}
+}
 double 
 Shell7BasePhFi :: computeDamageInLayerAt_dist(int layer, int index, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN)
 {
@@ -160,13 +188,13 @@ Shell7BasePhFi :: computeDamageInLayerAt_dist(int layer, int index, GaussPoint *
     
     // Make sure returned damage is always between [0,1]
     double d_temp = Nvec.dotProduct(dVecRed);
-    if ( d_temp < 0.0 ) {
-        return 0.0;
-    } else if ( d_temp > 1.0 ) {
-        return 1.0;
-    } else {
+   // if ( d_temp < 0.0 ) {
+   //     return 0.0;
+   // } else if ( d_temp > 1.0 ) {
+   //     return 1.0;
+   // } else {
         return d_temp;
-    }
+   // }
 }
 
 #if 0
@@ -217,8 +245,10 @@ double
 Shell7BasePhFi  :: computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN)
 {
     // computes g = (1-d)^2 + r0
-    double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
-    double r0 = 1.0e-10;
+    //double dnew = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
+	double d = this->computeOldDamageInLayerAt(layer, gp, valueMode, stepN);
+    //double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
+	double r0 = 1.0e-10;
 
     return (1.0 - d) * (1.0 - d) + r0;  
     
@@ -260,13 +290,13 @@ Shell7BasePhFi  :: computeGbisInLayer(int layer, GaussPoint *gp, ValueModeType v
     //@todo this method is trivial but here if one wants to change the expression for g
     //return 2.0;
     double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
-    if ( d < 0.0 ) {
-        return 0.0;
-    } else if ( d > 1.0 ) {
-        return 0.0;
-    } else {
+    //if ( d < 0.0 ) {
+    //    return 0.0;
+    //} else if ( d > 1.0 ) {
+    //    return 0.0;
+    //} else {
         return 2.0;
-    }
+    //}
 }
 
 int
@@ -448,8 +478,11 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
     //this->computeStiffnessMatrix_ud(answer2, rMode, tStep);	//@todo: check why this gives worse convergence than the numerical
 	this->computeStiffnessMatrix_dd(answer4, rMode, tStep);
 	this->computeStiffnessMatrixNum_ud(answer5, rMode, tStep);
-	//this->computeStiffnessMatrixNum_dd(answer6, rMode, tStep); // Yields same matrix as the analytical (answer 4)
+	this->computeStiffnessMatrixNum_dd(answer6, rMode, tStep); // Yields same matrix as the analytical (answer 4)
 	
+	//answer4.printYourself();
+	//answer6.printYourself();
+
 	
     //this->computeStiffnessMatrix_du(answer3, rMode, tStep); //symmetric
     //answer3.beTranspositionOf(answer2);
@@ -459,8 +492,8 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
 	
     
     answer.assemble( answer1, loc_u, loc_u );
-    answer.assemble( answer5, loc_u, loc_d );
-    answer.assemble( answer3, loc_d, loc_u );
+    //answer.assemble( answer5, loc_u, loc_d );
+    //answer.assemble( answer3, loc_d, loc_u );
     answer.assemble( answer4, loc_d, loc_d );
 
 

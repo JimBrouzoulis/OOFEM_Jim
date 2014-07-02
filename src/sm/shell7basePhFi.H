@@ -81,6 +81,7 @@ public:
 	double computeGprimInLayer_dist(int layer, int indx, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 	double computeGbisInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     double computeDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
+	double computeOldDamageInLayerAt(int layer, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 	double computeDamageInLayerAt_dist(int layer, int indx, GaussPoint *gp, ValueModeType valueMode,  TimeStep *stepN);
 	IntArray computeDamageIndexArray(int layer);
 

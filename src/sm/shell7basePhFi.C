@@ -55,7 +55,7 @@
 
 namespace oofem {
 
-const int nLayers = 2; //@todo: Generalize!
+const int nLayers = 5; //@todo: Generalize!
 const double disturB = 1e-8; //@todo: Generalize!
 
 
@@ -245,7 +245,7 @@ double
 Shell7BasePhFi  :: computeGInLayer(int layer, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN)
 {
     // computes g = (1-d)^2 + r0
-    //double dnew = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
+    //double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
 	double d = this->computeOldDamageInLayerAt(layer, gp, valueMode, stepN);
     //double d = this->computeDamageInLayerAt(layer, gp, valueMode, stepN);
 	double r0 = 1.0e-10;
@@ -466,6 +466,8 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
 {
 
 	IntArray loc_u, loc_d;
+	FloatMatrix ansLocal;
+
     loc_u = this->giveOrdering_Disp();
 	loc_d = this->giveOrdering_Damage();
 
@@ -477,11 +479,11 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
     this->computeStiffnessMatrix_uu(answer1, rMode, tStep);
     //this->computeStiffnessMatrix_ud(answer2, rMode, tStep);	//@todo: check why this gives worse convergence than the numerical
 	this->computeStiffnessMatrix_dd(answer4, rMode, tStep);
-	this->computeStiffnessMatrixNum_ud(answer5, rMode, tStep);
-	this->computeStiffnessMatrixNum_dd(answer6, rMode, tStep); // Yields same matrix as the analytical (answer 4)
+	//this->computeStiffnessMatrixNum_ud(answer5, rMode, tStep);
+	//this->computeStiffnessMatrixNum_dd(answer6, rMode, tStep); // Yields same matrix as the analytical (answer 4)
 	
-	//answer4.printYourself();
-	//answer6.printYourself();
+	//answer2.printYourself();
+	//answer5.printYourself();
 
 	
     //this->computeStiffnessMatrix_du(answer3, rMode, tStep); //symmetric
@@ -495,7 +497,8 @@ Shell7BasePhFi :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
     //answer.assemble( answer5, loc_u, loc_d );
     //answer.assemble( answer3, loc_d, loc_u );
     answer.assemble( answer4, loc_d, loc_d );
-
+	
+	//answer6.printYourself();
 
 }
 
@@ -524,6 +527,9 @@ Shell7BasePhFi :: computeStiffnessMatrixNum_ud(FloatMatrix &answer, MatResponseM
 
 	for ( int indx = 1; indx <= numberOfLayers*numdofMans; indx++ ) {
 		computeSectionalForces_dist(force_dist, indx, tStep, solVec, upD);
+		//force.printYourself();
+		//force_dist.printYourself();
+		//solVec.printYourself();
 		//force_dist.printYourself();
 		force_dist.subtract(force);
 		
@@ -689,6 +695,7 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
     FloatArray genEps, genEpsD, totalSolVec, lCoords, Nd;
     FloatMatrix B, Bd;
     this->giveUpdatedSolutionVector(totalSolVec, tStep);    // => x, m, gam
+	sectionalForces.resize(2);
 
     fu.zero();
     for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
@@ -716,7 +723,8 @@ Shell7BasePhFi :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, Fl
             double zeta = giveGlobalZcoord( *gp->giveCoordinates() ); 
             	
             // Computation of sectional forces: fu = Bu^t*[N M T Ms Ts]^t
-            this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEpsD, zeta); // these are per unit volume
+//            this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEpsD, zeta); // these are per unit volume
+            this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEps, zeta); // these are per unit volume
             ftemp_u.beTProductOf(B,sectionalForces);
             double dV = this->computeVolumeAroundLayer(gp, layer);
 			double g = this->computeGInLayer(layer, gp, VM_Total,  tStep);
@@ -787,7 +795,8 @@ Shell7BasePhFi :: computeSectionalForces_dist(FloatArray &answer, int indx, Time
             double zeta = giveGlobalZcoord( *gp->giveCoordinates() ); 
             	
             // Computation of sectional forces: fu = Bu^t*[N M T Ms Ts]^t
-            this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEpsD, zeta); // these are per unit volume
+//            this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEpsD, zeta); // these are per unit volume
+            this->computeSectionalForcesAt(sectionalForces, gp, mat, tStep, genEps, genEps, zeta); // these are per unit volume
             ftemp_u.beTProductOf(B,sectionalForces);
             double dV = this->computeVolumeAroundLayer(gp, layer);
 			double g = this->computeGInLayer_dist(layer, indx, gp, VM_Total,  tStep);
@@ -834,7 +843,7 @@ Shell7BasePhFi :: computeSectionalForcesAt_d(double &sectionalForcesScal, FloatA
                                             Material *mat, TimeStep *tStep, double zeta, int layer, FloatArray &gradd)
 {
     //PhaseFieldCrossSection *cs = static_cast...  // in the future...
-    
+    sectionalForcesVec.zero();
     //sectionalForcesScal = -kp*neg_Mac(alpha_dot) + g_c/l*d + G'*Psibar 
     double kp      = this->givePenaltyParameter();
     double Delta_t = tStep->giveTimeIncrement();
@@ -844,11 +853,16 @@ Shell7BasePhFi :: computeSectionalForcesAt_d(double &sectionalForcesScal, FloatA
     double g_c     = this->giveCriticalEnergy();
     double Gprim   = computeGprimInLayer(layer, gp, VM_Total, tStep);
     double Psibar  = this->computeFreeEnergy( gp, tStep );
+
+	if (Psibar < 0) {
+		OOFEM_ERROR1("Shell7BasePhFi :: computeSectionalForcesAt_d - negative strain energy predicted")
+	}
     
     sectionalForcesScal = -kp * neg_MaCauley(Delta_d/Delta_t) + g_c / l * d + Gprim * Psibar;
   
     //sectionalForcesVec = grad(alpha) * g_c * l
-    sectionalForcesVec = gradd * g_c * l;
+	sectionalForcesVec.beScaled(g_c*l,gradd);
+    //sectionalForcesVec = gradd * g_c * l;
 
 }
 

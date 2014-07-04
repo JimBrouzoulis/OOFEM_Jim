@@ -52,8 +52,8 @@ namespace oofem {
 PhaseFieldElement::PhaseFieldElement( int i, Domain *aDomain ) 
 {  
     ///@todo will be set by the cross section later
-    internalLength = 6.0; //6.0
-    criticalEnergy = 1.0e2; //1.0e3
+    internalLength = 0.5; //6.0
+    criticalEnergy = 1.0e3; //1.0e3
     relaxationTime = 1.0; // 1.0
     penaltyParameter = 1.0e0;
 };

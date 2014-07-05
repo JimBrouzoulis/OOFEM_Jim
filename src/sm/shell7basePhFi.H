@@ -150,45 +150,25 @@ protected:
 	virtual void computeSectionalForcesAt_d_dist(double &ans_scalar, FloatArray &answer, int indx, IntegrationPoint *ip, Material *mat, TimeStep *tStep,  double zeta, int layer, FloatArray &Ddam_Dxi);
 
 
-    // External forces
-
-    // Transformation
-	
 	// Solution vectors
     //void giveSolutionVector_u(FloatArray &answer, const IntArray &dofIdArray, TimeStep *tStep);
     void giveSolutionVector_d(FloatArray &answer, const IntArray &dofIdArray, TimeStep *tStep);
     void computeVectorOfDofIDs(const IntArray &dofIdArray, ValueModeType u, TimeStep *stepN, FloatArray &answer);
-//    void temp_computeBoundaryVectorOf(IntArray &dofIdArray, int boundary, ValueModeType u, TimeStep *stepN, FloatArray &answer);
-
-//    virtual void edgeGiveUpdatedSolutionVector(FloatArray &answer, const int iedge, TimeStep *tStep);
-//    void edgeGiveInitialSolutionVector(FloatArray &answer, const int iedge);
-
-    //void giveInitialSolutionVector(FloatArray &answer);
-    //void giveUpdatedSolutionVector(FloatArray &answer, TimeStep *tStep);
     void giveUpdatedSolutionVector_d(FloatArray &answer, TimeStep *tStep);
-    //void giveUnknownsAt(FloatArray &lcoords, FloatArray &solVec, FloatArray &x, FloatArray &m, double gam, TimeStep *tStep);
-
-
+    
     // VTK interface
-        
-    //virtual void giveCompositeExportData(std::vector< VTKPiece > &vtkPieces, IntArray &primaryVarsToExport, IntArray &internalVarsToExport, IntArray cellVarsToExport, TimeStep *tStep );
     virtual void giveShellExportData(VTKPiece &vtkPiece, IntArray &primaryVarsToExport, IntArray &internalVarsToExport, IntArray cellVarsToExport, TimeStep *tStep );
-    
-    
-//    void recoverValuesFromIP(std::vector<FloatArray> &nodes, int layer, InternalStateType type, TimeStep *tStep);
-    //void computeBmatrixForStressRecAt(FloatArray &lcoords, FloatMatrix &answer, int layer);
 
 
     // N and B matrices
-	virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS){}; //@todo: define for damage
+	virtual void computeBdmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li = 1, int ui = ALL_STRAINS)
+    { OOFEM_ERROR1("Shell7BasePhFi :: computeBdmatrixAt should not be called");    };
 
 	virtual void computeBdmatrixAt(FloatArray &lCoords, FloatMatrix &answer);
 
 	virtual void computeNdvectorAt(const FloatArray &iLocCoords, FloatArray &answer);
     virtual void computeNdMatrixAt(const FloatArray &iLocCoords, FloatMatrix &answer); // same as vector but saved as a FloatMatrix
 
-    // Misc
-    //virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);
 };
 } // end namespace oofem
 #endif

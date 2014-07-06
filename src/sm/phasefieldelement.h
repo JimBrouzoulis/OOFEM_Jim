@@ -55,7 +55,7 @@ public:
     PhaseFieldElement( int i, Domain *aDomain );
     virtual ~PhaseFieldElement() {}
 
-    virtual NLStructuralElement *giveElement( ) = 0;
+    virtual Element *giveElement( ) = 0;
 
     virtual IRResultType initializeFrom(InputRecord *ir);
     virtual void giveDofManDofIDMask_u(IntArray &answer) = 0;

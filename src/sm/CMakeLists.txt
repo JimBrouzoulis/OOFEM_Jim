@@ -61,6 +61,7 @@ set (sm_interface_elements
     InterfaceElements/intelline1.C
     InterfaceElements/intelline2.C
     InterfaceElements/intelsurftr1.C
+    InterfaceElements/intelline1PF.C
     )
 
 set (sm_boundary_conditions

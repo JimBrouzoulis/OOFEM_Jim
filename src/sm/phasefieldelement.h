@@ -65,7 +65,7 @@ public:
 
     int computeNumberOfDofs();
     void computeVectorOfDofIDs( const IntArray &dofIdArray, ValueModeType valueMode, TimeStep *stepN, FloatArray &answer );
-    void computeLocationArrayOfDofIDs( const IntArray &dofIdArray, IntArray &answer );
+    virtual void computeLocationArrayOfDofIDs( const IntArray &dofIdArray, IntArray &answer );
 
     double computeFreeEnergy( GaussPoint *gp, TimeStep *tStep );
 
@@ -102,7 +102,7 @@ protected:
     
     double computeG(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     double computeGPrim(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
-    double computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+    virtual double computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 
     void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord);
     void giveInternalForcesVector_u(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord);

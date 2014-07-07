@@ -33,6 +33,7 @@
  */
 
 #include "IntElLine1PF.h"
+#include "IntElLine1.h"
 #include "node.h"
 #include "structuralinterfacecrosssection.h"
 #include "gausspoint.h"
@@ -131,7 +132,7 @@ IntElLine1PF :: initializeFrom(InputRecord *ir)
 void
 IntElLine1PF :: giveDofManDofIDMask(int inode, EquationID, IntArray &answer) const
 {
-    answer.setValues(2, D_u, D_v);
+    answer.setValues(3, D_u, D_v, T_f);
 }
 
 void
@@ -297,7 +298,8 @@ double
 IntElLine1PF :: computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN)
 {
     // d = N_d * a_d
-    NLStructuralElement *el = static_cast< NLStructuralElement* >(this->giveElement( ) );
+    //NLStructuralElement *el = static_cast< NLStructuralElement* >(this->giveElement( ) );
+    StructuralInterfaceElement *el = this->giveElement( );
     FloatArray dVec;
     computeDamageUnknowns(dVec, valueMode, stepN);
     dVec.resizeWithValues(2);
@@ -346,9 +348,12 @@ IntElLine1PF :: giveInternalForcesVector(FloatArray &answer,
     IntegrationRule *iRule = integrationRulesArray [ giveDefaultIntegrationRule() ];
 
     FloatMatrix N, rotationMatGtoL, Nd, Bd;
-    FloatArray u, traction, tractionTemp, jump, fu, fd;
+    FloatArray u, traction, tractionTemp, jump, fu, fd(2), fd4(4);
 
-    this->computeVectorOf(EID_MomentumBalance, VM_Total, tStep, u);
+    IntArray IdMask_u;
+    this->giveDofManDofIDMask_u( IdMask_u );
+    this->computeVectorOfDofIDs(IdMask_u, VM_Total, tStep, u );
+    //this->computeVectorOf(EID_MomentumBalance, VM_Total, tStep, u);
     // subtract initial displacements, if defined
     if ( initialDisplacements ) {
         u.subtract(* initialDisplacements);
@@ -356,10 +361,10 @@ IntElLine1PF :: giveInternalForcesVector(FloatArray &answer,
 
     // zero answer will resize accordingly when adding first contribution
     answer.resize(0);
-
-    FloatArray a_d;
-    this->computeDamageUnknowns( a_d, VM_Total, tStep );
-
+    fd.zero();
+    FloatArray a_d_temp, a_d;
+    this->computeDamageUnknowns( a_d_temp, VM_Total, tStep );
+    a_d.setValues(2, a_d_temp.at(1), a_d_temp.at(2) ); 
     for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
         IntegrationPoint *ip = iRule->getIntegrationPoint(i);
         this->computeNmatrixAt(ip, N);
@@ -399,6 +404,27 @@ IntElLine1PF :: giveInternalForcesVector(FloatArray &answer,
 
     }
 
+    IntArray indx1, indx2;
+    indx1.setValues(2, 1, 2);
+    indx2.setValues(2, 3, 4);
+    fd4.zero();
+    answer.assemble(fd4, indx1);
+    answer.assemble(fd4, indx2);
+
+
+// total vec
+    IntArray IdMask_d;
+    this->giveDofManDofIDMask_u( IdMask_u );
+    this->giveDofManDofIDMask_d( IdMask_d );
+    this->computeLocationArrayOfDofIDs( IdMask_u, loc_u );
+    this->computeLocationArrayOfDofIDs( IdMask_d, loc_d );
+
+    int nDofs = this->computeNumberOfDofs();
+    answer.resize( nDofs );
+    answer.zero();
+    answer.assemble(fu, loc_u);
+    answer.assemble(fd4, loc_d);
+
 }
 
 
@@ -406,7 +432,9 @@ IntElLine1PF :: giveInternalForcesVector(FloatArray &answer,
 void
 IntElLine1PF :: giveDofManDofIDMask_u(IntArray &answer)
 {
-	StructuralInterfaceElement :: giveDofManDofIDMask(-1, EID_MomentumBalance, answer); 
+	//StructuralInterfaceElement :: giveDofManDofIDMask(-1, EID_MomentumBalance, answer); 
+    //IntElLine1 :: giveDofManDofIDMask(-1, EID_MomentumBalance, answer);
+    answer.setValues(2, D_u, D_v);
 }
 
 void
@@ -416,6 +444,49 @@ IntElLine1PF :: giveDofManDofIDMask_d(IntArray &answer)
 }
 
 
+void
+IntElLine1PF :: computeLocationArrayOfDofIDs( const IntArray &dofIdArray, IntArray &answer )
+{
+    // Routine to extract compute the location array an element given an dofid array.
+    answer.resize( 0 );
+    //NLStructuralElement *el = this->giveElement();
+    StructuralInterfaceElement *el = this->giveElement();
+    int k = 0;
+    for(int i = 1; i <= el->giveNumberOfDofManagers(); i++) {
+        DofManager *dMan = el->giveDofManager( i );
+        for(int j = 1; j <= dofIdArray.giveSize( ); j++) {
 
+            if(dMan->hasDofID( (DofIDItem) dofIdArray.at( j ) )) {
+                Dof *d = dMan->giveDofWithID( dofIdArray.at( j ) );
+                answer.followedBy( k + d->giveNumber( ) );
+            }
+        }
+        k += dMan->giveNumberOfDofs( );
+    }
+}
+
+void
+IntElLine1PF :: computeNd_matrixAt(const FloatArray &lCoords, FloatMatrix &N)
+{
+    StructuralInterfaceElement *el = this->giveElement();
+    FloatArray Nvec;
+    el->giveInterpolation( )->evalN( Nvec, lCoords, FEIElementGeometryWrapper( el ) );
+    N.resize(1, Nvec.giveSize());
+    N.beNMatrixOf(Nvec,1);
+
+}
+
+void
+IntElLine1PF :: computeBd_matrixAt(GaussPoint *aGaussPoint, FloatMatrix &answer, int li, int ui)
+{
+    // Returns the [numSpaceDim x nDofs] gradient matrix {B_d} of the receiver,
+    // evaluated at gp.
+
+    StructuralInterfaceElement *el = dynamic_cast< StructuralInterfaceElement* > ( this->giveElement() );
+    FloatMatrix dNdxi;
+    //el->giveInterpolation( )->evaldNdx( dNdx, *aGaussPoint->giveCoordinates( ), FEIElementGeometryWrapper( el ) );
+    this->giveInterpolation()->evaldNdxi( dNdxi, *aGaussPoint->giveCoordinates( ), FEIElementGeometryWrapper( this ) );
+    answer.beTranspositionOf( dNdxi );
+}
 
 } // end namespace oofem

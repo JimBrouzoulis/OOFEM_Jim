@@ -83,7 +83,7 @@ protected:
     /// Initial displacement vector, describes the initial nodal displacements when element has been casted.
     FloatArray *initialDisplacements;
     FEInterpolation *interpolation;
-    virtual FEInterpolation *giveInterpolation() const { return interpolation; };
+    
     /// Flag indicating if geometrical nonlinearities apply.
     int nlGeometry;
 public:
@@ -95,6 +95,8 @@ public:
     StructuralInterfaceElement(int n, Domain *d);
     /// Destructor.
     virtual ~StructuralInterfaceElement();
+
+    virtual FEInterpolation *giveInterpolation() const { return interpolation; };
 
     virtual void giveCharacteristicMatrix(FloatMatrix & answer, CharType, TimeStep * tStep);
     virtual void giveCharacteristicVector(FloatArray &answer, CharType type, ValueModeType mode, TimeStep *tStep);

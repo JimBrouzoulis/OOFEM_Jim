@@ -91,7 +91,7 @@ public:
 
     // PF
     int giveNumberOfDofManagers() const { return 4; }
-    Element *giveElement() { return this; }
+    StructuralInterfaceElement *giveElement() { return this; }
 	virtual void giveDofManDofIDMask_u(IntArray &answer);
     virtual void giveDofManDofIDMask_d(IntArray &answer);
 
@@ -102,6 +102,9 @@ public:
 
     virtual void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord = 0);
     virtual double computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+    virtual void computeLocationArrayOfDofIDs( const IntArray &dofIdArray, IntArray &answer );
+    virtual void computeBd_matrixAt(GaussPoint *, FloatMatrix &, int = 1, int = ALL_STRAINS);
+    virtual void computeNd_matrixAt(const FloatArray &lCoords, FloatMatrix &N);
 
 
 protected:

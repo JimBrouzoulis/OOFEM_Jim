@@ -78,6 +78,8 @@ public:
     double giveRelaxationTime( ) { return relaxationTime; };
     double penaltyParameter;
     double givePenaltyParameter() { return penaltyParameter; };
+    double psiBar0;
+    double givePsiBar0() { return psiBar0; };
 
 protected:
 

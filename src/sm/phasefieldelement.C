@@ -52,10 +52,12 @@ namespace oofem {
 PhaseFieldElement::PhaseFieldElement( int i, Domain *aDomain ) 
 {  
     ///@todo will be set by the cross section later
-    internalLength = 0.5; //6.0
-    criticalEnergy = 1.0e3; //1.0e3
+    internalLength = 0.001; //6.0
+    criticalEnergy = 0.01; //1.0e3
+    // G =? gc/l = 10
     relaxationTime = 1.0; // 1.0
     penaltyParameter = 1.0e0;
+    psiBar0 = 0.0;
 };
 
 void
@@ -218,10 +220,10 @@ PhaseFieldElement :: computeFreeEnergy(GaussPoint *gp, TimeStep *tStep)
 {
     StructuralMaterialStatus *matStat = static_cast< StructuralMaterialStatus * >( gp->giveMaterialStatus() );
     FloatArray strain, stress;
-    //stress = matStat->giveTempStressVector();
-    //strain = matStat->giveTempStrainVector();
-	stress = matStat->giveStressVector();
-	strain = matStat->giveStrainVector();
+    stress = matStat->giveTempStressVector();
+    strain = matStat->giveTempStrainVector();
+	//stress = matStat->giveStressVector();
+	//strain = matStat->giveStrainVector();
     return 0.5 * stress.dotProduct( strain );
 }
 

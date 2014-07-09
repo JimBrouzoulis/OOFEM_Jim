@@ -1390,6 +1390,10 @@ VTKXMLExportModule :: getNodalVariableFromPrimaryField(FloatArray &answer, DofMa
         dofIDMask.followedBy(P_f);
         iState = IST_Pressure;
         answer.resize(1);
+    } else if ( type == ScalarDamage ) {
+        dofIDMask.followedBy(T_f);
+        iState = IST_Temperature;
+        answer.resize(1);
     } else if ( type == DirectorField ) {
         for ( int j = 1; j <= dman->giveNumberOfDofs(); j++ ) {
             id = dman->giveDof(j)->giveDofID();
@@ -1440,7 +1444,7 @@ VTKXMLExportModule :: getNodalVariableFromPrimaryField(FloatArray &answer, DofMa
             if ( size == recoveredVal->giveSize() ) {
                 answer.at(j) = recoveredVal->at(j);
             } else {
-                OOFEM_WARNING2("VTKXMLExportModule :: getDofManPrimaryVariable: recovered variable size mismatch for %d", type);
+//                OOFEM_WARNING2("VTKXMLExportModule :: getDofManPrimaryVariable: recovered variable size mismatch for %d", type);
                 answer.at(j) = 0.0;
             }
         }

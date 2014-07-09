@@ -76,6 +76,9 @@ void IntMatBilinearCZStatus :: updateYourself(TimeStep *tStep)
     mTractionOld = mTractionNew;
     mJumpOld     = mJumpNew;
     mDamageOld   = mDamageNew;
+    this->letJumpBe( this->giveTempJump() );
+    this->letFirstPKTractionBe( this->giveTempFirstPKTraction() );
+
 }
 
 
@@ -122,7 +125,7 @@ void IntMatBilinearCZ :: giveFirstPKTraction_3d(FloatArray &answer, GaussPoint *
     IntMatBilinearCZStatus *status = static_cast< IntMatBilinearCZStatus * >( this->giveStatus(gp) );
 
     status->mJumpNew = jump;
-
+    //jump.printYourself();
     FloatArray jumpInc;
     jumpInc.beDifferenceOf(status->mJumpNew, status->mJumpOld);
 
@@ -144,12 +147,16 @@ void IntMatBilinearCZ :: giveFirstPKTraction_3d(FloatArray &answer, GaussPoint *
 
 
     answer = tractionTrial;
-
+    //answer.printYourself();
     if ( phiTr < 0.0 ) {
         status->mDamageNew = status->mDamageOld;
         answer.beScaled( ( 1.0 - status->mDamageNew ), answer );
 
         status->mTractionNew = answer;
+        status->letTempJumpBe(jump);
+        //answer.printYourself();
+        status->letTempFirstPKTractionBe(answer);
+                
         return;
     } else   {
         // Iterate to find plastic strain increment.

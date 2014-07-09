@@ -96,16 +96,36 @@ public:
     virtual void giveDofManDofIDMask_d(IntArray &answer);
 
     virtual void computeStiffnessMatrix_uu(FloatMatrix &, MatResponseMode, TimeStep *);
-    //virtual void computeStiffnessMatrix_ud(FloatMatrix &, MatResponseMode, TimeStep *);
+    virtual void computeStiffnessMatrix_ud(FloatMatrix &, MatResponseMode, TimeStep *);
     virtual void computeStiffnessMatrix_dd(FloatMatrix &, MatResponseMode, TimeStep *);
     //virtual void computeStiffnessMatrix_du(FloatMatrix &, MatResponseMode, TimeStep *);
 
     virtual void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord = 0);
     virtual double computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     virtual void computeLocationArrayOfDofIDs( const IntArray &dofIdArray, IntArray &answer );
-    virtual void computeBd_matrixAt(GaussPoint *, FloatMatrix &, int = 1, int = ALL_STRAINS);
-    virtual void computeNd_matrixAt(const FloatArray &lCoords, FloatMatrix &N);
+    virtual void computeBd_vectorAt(GaussPoint *gp, FloatArray &B);
+    virtual void computeNd_vectorAt(const FloatArray &lCoords, FloatArray &N);
+    virtual double computeFreeEnergy(GaussPoint *gp, TimeStep *tStep);
 
+    double neg_MaCauley(double par)
+    {
+        return 0.5 * ( abs(par) - par );
+    }
+
+    double neg_MaCauleyPrime(double par)
+    {
+        return 0.5 * ( abs(par)/(par + 1.0e-12) - 1.0 ); // 0.5*(sign - 1) taken from Ragnars code
+    }
+
+    double MaCauley(double par)
+    {
+        return 0.5 * ( abs(par) + par );
+    }
+
+    double MaCauleyPrime(double par)
+    {
+        return 0.5 * ( abs(par)/(par + 1.0e-12) + 1.0 ); // 0.5*(sign + 1) taken from Ragnars code
+    }
 
 protected:
     virtual void computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer);

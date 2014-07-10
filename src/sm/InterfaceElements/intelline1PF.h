@@ -101,12 +101,15 @@ public:
     //virtual void computeStiffnessMatrix_du(FloatMatrix &, MatResponseMode, TimeStep *);
 
     virtual void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord = 0);
+    virtual void giveInternalForcesVectorUD(FloatArray &fu, FloatArray &fd, TimeStep *tStep, int useUpdatedGpRecord = 0);
     virtual double computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     virtual void computeLocationArrayOfDofIDs( const IntArray &dofIdArray, IntArray &answer );
     virtual void computeBd_vectorAt(GaussPoint *gp, FloatArray &B);
     virtual void computeNd_vectorAt(const FloatArray &lCoords, FloatArray &N);
     virtual double computeFreeEnergy(GaussPoint *gp, TimeStep *tStep);
-
+    
+    double computeOldG(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
+    double computeOldGPrim(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     double neg_MaCauley(double par)
     {
         return 0.5 * ( abs(par) - par );
@@ -128,6 +131,11 @@ public:
     }
 
 protected:
+
+    FloatArray unknownVectorU;
+    FloatArray unknownVectorD;
+    FloatArray deltaUnknownVectorD;
+
     virtual void computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer);
     virtual void computeGaussPoints();
 

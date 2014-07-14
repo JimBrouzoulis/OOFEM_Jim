@@ -57,7 +57,10 @@ IntElLine1PF :: IntElLine1PF(int n, Domain *aDomain) :
     StructuralInterfaceElement(n, aDomain), PhaseFieldElement(n, aDomain)
 {
     numberOfDofMans = 4;
+    alpha.resize(2);
+    alpha.zero();
 }
+
 
 
 void
@@ -88,7 +91,7 @@ IntElLine1PF :: computeGaussPoints()
         integrationRulesArray = new IntegrationRule * [ 1 ];
         //integrationRulesArray[0] = new LobattoIntegrationRule (1,domain, 1, 2);
         integrationRulesArray [ 0 ] = new GaussIntegrationRule(1, this, 1, 2);
-        integrationRulesArray [ 0 ]->SetUpPointsOnLine(2, _2dInterface); ///@todo - should be a parameter with num of ip
+        integrationRulesArray [ 0 ]->SetUpPointsOnLine(4, _2dInterface); ///@todo - should be a parameter with num of ip
     }
 }
 
@@ -126,7 +129,17 @@ IntElLine1PF :: computeAreaAround(IntegrationPoint *ip)
 IRResultType
 IntElLine1PF :: initializeFrom(InputRecord *ir)
 {
+    const char *__proc = "initializeFrom";  // Required by IR_GIVE_FIELD macro
+    IRResultType result;                    // Required by IR_GIVE_FIELD macro
+    if ( ir->hasField(_IFT_IntElLine1PF_prescribedDamage) )
+    {
+        double damage = 0.0;
+        IR_GIVE_FIELD(ir, damage, _IFT_IntElLine1PF_prescribedDamage);
+        //this->alpha.setValues(2, damage, damage);
+    }
     return StructuralInterfaceElement :: initializeFrom(ir);
+
+
 }
 
 
@@ -181,6 +194,10 @@ IntElLine1PF :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rMod
     this->computeDamageUnknowns( this->unknownVectorD, VM_Total, tStep );
     this->computeDamageUnknowns( this->deltaUnknownVectorD, VM_Incremental, tStep );
 
+    FloatMatrix temp;
+    solveForLocalDamage(temp, tStep);
+
+
     FloatMatrix answer1, answer2, answer3, answer4;
     this->computeStiffnessMatrix_uu(answer1, rMode, tStep);
     //this->computeStiffnessMatrix_ud(answer2, rMode, tStep);
@@ -224,8 +241,23 @@ IntElLine1PF :: computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode r
         this->computeNmatrixAt(ip, N);
         DN.beProductOf(D, N);
         double dA = this->computeAreaAround(ip);
-        //double g = this->computeG(ip, VM_Total, tStep);
-        double g = this->computeOldG(ip, VM_Total, tStep);
+
+        //FloatMatrix temp;
+        //solveForLocalDamage(temp, tStep);
+
+        double g = this->computeG(ip, VM_Total, tStep);
+        FloatArray Nd;
+            this->computeNd_vectorAt(*ip->giveCoordinates(), Nd);
+            double d = Nd.dotProduct(this->alpha);
+            g = (1.0 - d) * (1.0 - d);
+            StructuralInterfaceMaterialStatus *matStat = static_cast< StructuralInterfaceMaterialStatus * >( ip->giveMaterialStatus() );
+            FloatArray strain, stress;
+            stress = matStat->giveTempFirstPKTraction();
+	        strain = matStat->giveTempJump();
+            if ( stress.at(2) < 0.0 ) {
+                g = 1.0;
+            }
+        //double g = this->computeOldG(ip, VM_Total, tStep);
         if ( matStiffSymmFlag ) {
             answer.plusProductSymmUpper(N, DN, dA*g);
         } else {
@@ -416,6 +448,91 @@ IntElLine1PF :: computeStiffnessMatrix_dd(FloatMatrix &answer, MatResponseMode r
 
 
 
+void 
+IntElLine1PF :: solveForLocalDamage(FloatMatrix &answer, TimeStep *tStep)
+{
+    // approach with dame defined over the element only
+
+    if (tStep->giveNumber() == 1 ){
+        return;
+    }
+
+    IntegrationRule *iRule = integrationRulesArray [ giveDefaultIntegrationRule() ];
+
+    FloatArray a_u, a_d_temp, a_d(2), traction, jump, fd(2), Nd, Bd;
+    FloatMatrix Kdd(2,2), tempN, tempB;
+    FloatArray delta_a_d;
+
+
+    double kp      = this->givePenaltyParameter();
+    double Delta_t = tStep->giveTimeIncrement();
+    double l       = this->giveInternalLength();
+    double g_c     = this->giveCriticalEnergy();
+        
+    fd.zero();
+    Kdd.zero();
+    //a_d.zero();
+    a_d = this->alpha; // checked - evolves
+    this->oldAlpha = this->alpha;
+    for ( int nIter = 1; nIter <= 5; nIter++  ) {
+        fd.zero();
+        Kdd.zero();
+        for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
+            IntegrationPoint *ip = iRule->getIntegrationPoint(i);
+
+            this->computeBd_vectorAt(ip, Bd);
+            this->computeNd_vectorAt(*ip->giveCoordinates(), Nd);
+            double dA = this->computeAreaAround(ip);
+
+            // Internal force
+            //double d       = computeDamageAt( ip, VM_Total, tStep);
+            double d = Nd.dotProduct(a_d);
+            double gradd   = Bd.dotProduct(a_d); // Dalpha/Ds
+            //double Delta_d = computeDamageAt( ip, VM_Incremental, tStep);
+            double Delta_d = Nd.dotProduct(a_d-oldAlpha);
+            //double Gprim   = computeGPrim(ip, VM_Total, tStep);
+            double Gprim   = -2.0 * (1.0 - d);
+            double Psibar  = this->computeFreeEnergy( ip, tStep );
+            
+        
+            double sectionalForcesScal = -kp * neg_MaCauley(Delta_d/Delta_t) + g_c / l * d + Gprim * Psibar;
+	        double sectionalForcesVec  = g_c * l * gradd;
+            fd = fd + ( Nd*sectionalForcesScal + Bd*sectionalForcesVec ) * dA;
+
+
+            // Tangent
+            //double Gbis   = this->computeGbis()
+            double Gbis = 2.0;
+            
+            // K_dd1 = ( -kp*neg_Mac'(d_dot) / Delta_t + g_c/ l + G'' * Psibar ) * N^t*N; 
+            double factorN = -kp * neg_MaCauleyPrime(Delta_d/Delta_t)/Delta_t +  g_c / l + Gbis * Psibar; 
+            //double factorN = g_c / l + Gbis * Psibar; 
+
+            tempN.beDyadicProductOf(Nd, Nd);
+            Kdd.add(factorN * dA, tempN);
+
+            // K_dd2 =  g_c * l * Bd^t * Bd;
+            double factorB = g_c * l;
+            tempB.beDyadicProductOf(Bd, Bd);
+            Kdd.add(factorB * dA, tempB);
+
+        }
+        if( fd.computeNorm() < 1.0e-9 ) {
+            this->alpha = a_d;
+            return;
+        }
+        Kdd.solveForRhs(fd, delta_a_d);
+        a_d.subtract(delta_a_d);
+        this->deltaAlpha += delta_a_d;
+        //this->alpha = a_d;
+        //a_d.printYourself();
+    }
+
+    OOFEM_ERROR1("No convergence in phase field iterations")
+}
+
+
+
 
 double 
 IntElLine1PF :: computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN)
@@ -425,13 +542,14 @@ IntElLine1PF :: computeDamageAt(GaussPoint *gp, ValueModeType valueMode, TimeSte
     StructuralInterfaceElement *el = this->giveElement( );
     FloatArray dVec;
     if ( valueMode == VM_Total ) {
-        dVec = this->unknownVectorD;
-        // use old value
-        //dVec.subtract(this->deltaUnknownVectorD);
+        //dVec = this->unknownVectorD;
+        //// use old value
+        ////dVec.subtract(this->deltaUnknownVectorD);
+        dVec = this->alpha;
     } else if ( valueMode == VM_Incremental ) {
         dVec = this->deltaUnknownVectorD;
     }
-    dVec.resizeWithValues(2);
+    //dVec.resizeWithValues(2);
     FloatArray Nvec;
     el->giveInterpolation()->evalN(Nvec, *gp->giveCoordinates(), FEIElementGeometryWrapper(el));
     return Nvec.dotProduct(dVec);
@@ -447,6 +565,8 @@ IntElLine1PF :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, in
     this->computeDamageUnknowns( this->unknownVectorD, VM_Total, tStep );
     this->computeDamageUnknowns( this->deltaUnknownVectorD, VM_Incremental, tStep );
     
+
+
     FloatArray fu, fd;
     this->giveInternalForcesVectorUD(fu, fd, tStep, useUpdatedGpRecord);
 
@@ -461,14 +581,14 @@ IntElLine1PF :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, in
     answer.resize( nDofs );
     answer.zero();
     answer.assemble(fu, loc_u);
-    answer.assemble(fd, loc_d);
+    //answer.assemble(fd, loc_d);
 
 }
 void
 IntElLine1PF :: giveInternalForcesVectorUD(FloatArray &fu, FloatArray &fd4, TimeStep *tStep, int useUpdatedGpRecord)
 {
     // Computes internal forces
-    // if useGpRecord == 1 then data stored in ip->giveStressVector() are used
+    // if useGpRecnord == 1 then data stored in ip->giveStressVector() are used
     // instead computing stressVector through this->ComputeStressVector();
     // this must be done after you want internal forces after element->updateYourself()
     // has been called for the same time step.
@@ -495,8 +615,25 @@ IntElLine1PF :: giveInternalForcesVectorUD(FloatArray &fu, FloatArray &fd4, Time
         // compute internal cohesive forces as f = N^T * g * traction dA
         jump.beProductOf(Nu, a_u);
         this->computeTraction(traction, ip, jump, tStep);
-        //double g  = this->computeG(ip, VM_Total, tStep);
-        double g  = this->computeOldG(ip, VM_Total, tStep);
+        
+        //FloatMatrix temp;
+        //solveForLocalDamage(temp, tStep);
+        double g  = this->computeG(ip, VM_Total, tStep);
+
+            this->computeNd_vectorAt(*ip->giveCoordinates(), Nd);
+            double d = Nd.dotProduct(this->alpha);
+            g = (1.0 - d) * (1.0 - d);
+
+            StructuralInterfaceMaterialStatus *matStat = static_cast< StructuralInterfaceMaterialStatus * >( ip->giveMaterialStatus() );
+            FloatArray strain, stress;
+            stress = matStat->giveTempFirstPKTraction();
+	        strain = matStat->giveTempJump();
+            if ( stress.at(2) < 0.0 ) {
+                g = 1.0;
+            }
+
+
+        //double g  = this->computeOldG(ip, VM_Total, tStep);
         double dA = this->computeAreaAround(ip);
         
         fu.plusProduct(Nu, traction, dA*g);
@@ -506,7 +643,7 @@ IntElLine1PF :: giveInternalForcesVectorUD(FloatArray &fu, FloatArray &fd4, Time
 
         double kp      = this->givePenaltyParameter();
         double Delta_t = tStep->giveTimeIncrement();
-        double d       = computeDamageAt( ip, VM_Total, tStep);
+        //double d       = computeDamageAt( ip, VM_Total, tStep);
         double Delta_d = computeDamageAt(ip, VM_Incremental, tStep);
         double l       = this->giveInternalLength();
         double g_c     = this->giveCriticalEnergy();
@@ -531,20 +668,6 @@ IntElLine1PF :: giveInternalForcesVectorUD(FloatArray &fu, FloatArray &fd4, Time
     indx2.setValues(2, 3, 4);
     fd4.assemble(fd, indx1);
     fd4.assemble(fd, indx2);
-
-
-    //// total vec
-    //IntArray IdMask_u, IdMask_d;
-    //this->giveDofManDofIDMask_u( IdMask_u );
-    //this->giveDofManDofIDMask_d( IdMask_d );
-    //this->computeLocationArrayOfDofIDs( IdMask_u, loc_u );
-    //this->computeLocationArrayOfDofIDs( IdMask_d, loc_d );
-
-    //int nDofs = this->computeNumberOfDofs();
-    //answer.resize( nDofs );
-    //answer.zero();
-    //answer.assemble(fu, loc_u);
-    //answer.assemble(fd4, loc_d);
 
 }
 
@@ -576,13 +699,6 @@ IntElLine1PF :: computeOldG(GaussPoint *gp, ValueModeType valueMode, TimeStep *s
     return (1.0 - d) * (1.0 - d) + r0;
 }
 
-double 
-IntElLine1PF :: computeOldGPrim(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN)
-{
-    // compute -2*(1-d)
-    double d = this->computeDamageAt(gp, VM_Total, stepN) - this->computeDamageAt(gp, VM_Incremental, stepN);
-    return -2.0 * (1.0 - d);
-}
 
 void
 IntElLine1PF :: giveDofManDofIDMask_u(IntArray &answer)

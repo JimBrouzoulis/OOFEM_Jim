@@ -38,6 +38,7 @@
 #include "structuralinterfaceelement.h"
 #include "phasefieldelement.h"
 #define _IFT_IntElLine1PF_Name "IntElLine1PF"
+#define _IFT_IntElLine1PF_prescribedDamage "prescribedDamage"
 
 namespace oofem {
 class FEI2dLineLin;
@@ -109,7 +110,6 @@ public:
     virtual double computeFreeEnergy(GaussPoint *gp, TimeStep *tStep);
     
     double computeOldG(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
-    double computeOldGPrim(GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
     double neg_MaCauley(double par)
     {
         return 0.5 * ( abs(par) - par );
@@ -130,11 +130,20 @@ public:
         return 0.5 * ( abs(par)/(par + 1.0e-12) + 1.0 ); // 0.5*(sign + 1) taken from Ragnars code
     }
 
+
+    void solveForLocalDamage(FloatMatrix &answer, TimeStep *tStep);
+
+
 protected:
 
     FloatArray unknownVectorU;
     FloatArray unknownVectorD;
     FloatArray deltaUnknownVectorD;
+
+    FloatArray deltaAlpha; 
+    FloatArray alpha;
+    FloatArray oldAlpha;
+
 
     virtual void computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer);
     virtual void computeGaussPoints();

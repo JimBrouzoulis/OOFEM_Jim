@@ -38,7 +38,7 @@
 #include "structuralinterfaceelement.h"
 #include "phasefieldelement.h"
 #define _IFT_IntElLine1PF_Name "IntElLine1PF"
-#define _IFT_IntElLine1PF_prescribedDamage "prescribedDamage"
+#define _IFT_IntElLine1PF_prescribedDamage "prescribeddamage"
 
 namespace oofem {
 class FEI2dLineLin;
@@ -132,7 +132,7 @@ public:
 
 
     void solveForLocalDamage(FloatMatrix &answer, TimeStep *tStep);
-
+    void computeGMatrix(FloatMatrix &answer, const double damage, GaussPoint *gp, ValueModeType valueMode, TimeStep *stepN);
 
 protected:
 
@@ -143,7 +143,7 @@ protected:
     FloatArray deltaAlpha; 
     FloatArray alpha;
     FloatArray oldAlpha;
-
+    double prescribed_damage;
 
     virtual void computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer);
     virtual void computeGaussPoints();

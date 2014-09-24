@@ -37,20 +37,10 @@
 
 #include "chartype.h"
 #include "valuemodetype.h"
+#include "element.h"
 
-
-
-// remove
-#include "oofemcfg.h"
-#include "datareader.h"
-#include "inputrecord.h"
-#include "intarray.h"
-#include "floatarray.h"
-
-#include <unordered_map>
-#include <list>
 #include <vector>
-#include <memory>
+
 
 ///@name Input fields for _IFT_ContactElement
 //@{
@@ -72,7 +62,7 @@ class IntegrationRule;
 
 // contact elements
 
-class OOFEM_EXPORT ContactElement
+class OOFEM_EXPORT ContactElement : public Element
 {
 private:
     ContactDefinition *cDef;
@@ -88,7 +78,7 @@ protected:
 public:
     IntegrationRule *integrationRule;
     /// Constructor.
-    ContactElement();
+    ContactElement(int num, Domain *d);
     /// Destructor.
     virtual ~ContactElement(){};
 

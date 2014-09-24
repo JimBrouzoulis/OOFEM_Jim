@@ -42,10 +42,8 @@ namespace oofem {
   
   
   
-Node2NodeContact :: Node2NodeContact(DofManager *slave, DofManager *master) : ContactElement()
+Node2NodeContact :: Node2NodeContact(int num, Domain *d) : ContactElement(num, d)
 {   
-    this->masterNode = master;
-    this->slaveNode = slave;
     this->area = 1.0;   // should be optional parameter
     this->epsN = 1.0e6; // penalty - should be given by 'contactmaterial'
 };   
@@ -55,14 +53,13 @@ Node2NodeContact :: instanciateYourself(DataReader *dr)
 {
     // compute normal as direction vector from master node to slave node
     FloatArray xs, xm, normal;
-    xs = *this->slaveNode->giveCoordinates();
-    xm = *this->masterNode->giveCoordinates();
-    
+    xs = *this->giveDofManager(1)->giveCoordinates();
+    xm = *this->giveDofManager(2)->giveCoordinates();
     normal = xs-xm;
     double norm = normal.computeNorm();
     if ( norm < 1.0e-8 ) {
         OOFEM_ERROR("Couldn't compute normal between master node (num %d) and slave node (num %d), nodes are too close to each other.", 
-          masterNode->giveGlobalNumber(), slaveNode->giveGlobalNumber() )
+          this->giveDofManager(2)->giveGlobalNumber(), this->giveDofManager(1)->giveGlobalNumber() )
     } else {
         this->normal = normal*(1.0/norm);
     }
@@ -75,10 +72,10 @@ Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
 {
 
     FloatArray xs, xm, uS, uM;
-    xs = *this->slaveNode->giveCoordinates();
-    xm = *this->masterNode->giveCoordinates();
-    this->slaveNode->giveUnknownVector(uS, {D_u, D_v, D_w}, VM_Total, tStep, true);
-    this->masterNode->giveUnknownVector(uM, {D_u, D_v, D_w}, VM_Total, tStep, true);
+    xs = *this->giveDofManager(1)->giveCoordinates();
+    xm = *this->giveDofManager(2)->giveCoordinates();
+    this->giveDofManager(1)->giveUnknownVector(uS, {D_u, D_v, D_w}, VM_Total, tStep, true);
+    this->giveDofManager(2)->giveUnknownVector(uM, {D_u, D_v, D_w}, VM_Total, tStep, true);
     
     xs.add(uS);
     xm.add(uM);
@@ -86,14 +83,6 @@ Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
     
     FloatArray normal = this->giveNormal();
     answer = {dx.dotProduct(normal), 0.0, 0.0};
-    
-    //printf("normal gap = %e \n", answer.at(1));
-    if ( answer.at(1) < 0.0 ) {
-        printf("normal gap = %e \n", answer.at(1));
-        //this->inContact = true; // store in gp?
-    } else {
-        //this->inContact = false;
-    }
     
 }
 
@@ -147,7 +136,6 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep, Ch
         // compute load vector
         // fc = C^T * traction * A, Area - should be optional par
         answer = t.at(1) * this->area * C;
-        answer.printYourself("fc");  
     }
   
 }
@@ -167,8 +155,6 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
     answer.beDyadicProductOf(C,C);
     // this is the interface stiffness and should be obtained from that model
     answer.times( this->epsN * this->area );
-    //answer.printYourself("K");
-    //answer.negated();
 
     if( gap.at(1) > 0.0 ) {
         answer.zero();
@@ -194,16 +180,16 @@ Node2NodeContact :: giveLocationArray(IntArray &answer, const UnknownNumberingSc
     
     // master node
     for ( int i = 1; i <= dofIdArray.giveSize(); i++ ) {
-        if ( this->masterNode->hasDofID( (DofIDItem)dofIdArray.at(i) ) ) { // add corresponding number
-            Dof *dof= this->masterNode->giveDofWithID( (DofIDItem)dofIdArray.at(i) );
+        if ( this->giveDofManager(2)->hasDofID( (DofIDItem)dofIdArray.at(i) ) ) { // add corresponding number
+            Dof *dof= this->giveDofManager(2)->giveDofWithID( (DofIDItem)dofIdArray.at(i) );
             answer.at(3+i) = s.giveDofEquationNumber( dof );
         } 
     }
 
     // slave node
     for ( int i = 1; i <= dofIdArray.giveSize(); i++ ) {
-        if ( this->slaveNode->hasDofID( (DofIDItem)dofIdArray.at(i) ) ) { // add corresponding number
-            Dof *dof= this->slaveNode->giveDofWithID( (DofIDItem)dofIdArray.at(i) );
+        if ( this->giveDofManager(1)->hasDofID( (DofIDItem)dofIdArray.at(i) ) ) { // add corresponding number
+            Dof *dof= this->giveDofManager(1)->giveDofWithID( (DofIDItem)dofIdArray.at(i) );
             answer.at(i) = s.giveDofEquationNumber( dof );
         } 
     }    
@@ -238,10 +224,9 @@ Node2NodeContact :: setupIntegrationPoints()
 // node 2 node Lagrange
 
 
-Node2NodeContactL :: Node2NodeContactL(DofManager *slave, DofManager *master) : Node2NodeContact(slave, master)
+Node2NodeContactL :: Node2NodeContactL(int num, Domain *d) : Node2NodeContact(num, d)
 {   
-//     this->masterNode = master;
-//     this->slaveNode = slave;
+
     this->area = 1.0;
 };   
 
@@ -254,8 +239,8 @@ Node2NodeContactL :: giveLocationArray(IntArray &answer, const UnknownNumberingS
     Node2NodeContact :: giveLocationArray(answer, s);
     
     // Add one lagrange dof
-    if ( this->slaveNode->hasDofID( (DofIDItem)this->giveDofIdArray().at(1) ) ) { 
-        Dof *dof= this->slaveNode->giveDofWithID( (DofIDItem)this->giveDofIdArray().at(1) );
+    if ( this->giveDofManager(1)->hasDofID( (DofIDItem)this->giveDofIdArray().at(1) ) ) { 
+        Dof *dof= this->giveDofManager(1)->giveDofWithID( (DofIDItem)this->giveDofIdArray().at(1) );
         answer.followedBy( s.giveDofEquationNumber(dof) );
     }
 
@@ -330,7 +315,7 @@ Node2NodeContactL :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Flo
     // gap should be in a local system
     if ( gap.at(1) < 0.0 ) {
         
-        Dof *dof = slaveNode->giveDofWithID( this->giveDofIdArray().at(1) );
+        Dof *dof = this->giveDofManager(1)->giveDofWithID( this->giveDofIdArray().at(1) );
         double lambda = dof->giveUnknown(VM_Total, tStep);
         t = {lambda, 0.0, 0.0};
     } else {
@@ -343,7 +328,7 @@ Node2NodeContactL :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Flo
 void
 Node2NodeContactL :: giveDofManagersToAppendTo(IntArray &answer)
 {
-    answer = {this->slaveNode->giveNumber()};
+    answer = {this->giveDofManager(1)->giveNumber()};
 }
     
     

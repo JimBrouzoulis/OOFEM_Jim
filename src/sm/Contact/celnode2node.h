@@ -39,8 +39,9 @@
 
 ///@name Input fields for _IFT_ContactElement
 //@{
-//#define _IFT_ContactManager_Name "contactmanager"
+#define _IFT_Node2NodeContactP_Name "node2nodecontactp"
 
+#define _IFT_Node2NodeContactL_Name "node2nodecontactl"
 //@}
 
 namespace oofem {
@@ -60,8 +61,6 @@ class OOFEM_EXPORT Node2NodeContact : public ContactElement
 {
 protected:
     ContactDefinition *cDef;
-    DofManager *masterNode;
-    DofManager *slaveNode;
     
 private:
     
@@ -74,7 +73,7 @@ private:
 public:
 
     /// Constructor.
-    Node2NodeContact(DofManager *master, DofManager *slave);
+    Node2NodeContact(int num, Domain *d);
     /// Destructor.
     virtual ~Node2NodeContact(){};
     virtual int instanciateYourself(DataReader *dr);
@@ -93,6 +92,7 @@ public:
     virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
     
     virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
+    virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactP_Name; }
 };
 
 
@@ -104,8 +104,6 @@ protected:
     ContactDefinition *cDef;
 
 private:
-//     DofManager *masterNode;
-//     DofManager *slaveNode;
     int lagrangeId; // dof Id associated with the Lagrange multiplier
     
     // should be set by input:
@@ -115,7 +113,7 @@ private:
 public:
 
     /// Constructor.
-    Node2NodeContactL(DofManager *master, DofManager *slave);
+    Node2NodeContactL(int num, Domain *d);
     /// Destructor.
     virtual ~Node2NodeContactL(){};
     virtual void giveDofManagersToAppendTo(IntArray &answer); 
@@ -128,6 +126,7 @@ public:
     virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
     
     virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
+    virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactL_Name; }
 };
 
 

@@ -123,7 +123,7 @@ ContactDefinition :: computeContactForces(FloatArray &answer, TimeStep *tStep, C
     // TODO ask masters that are potentially in contact and not everyone
     for ( ContactElement *master : this->masterElementList ) {
         
-        master->computeContactForces(Fc, tStep, type, mode, s, domain, eNorms);
+        master->computeContactForces(Fc, tStep);
      
         if ( Fc.giveSize() ) {
             master->giveLocationArray(locArray, s);

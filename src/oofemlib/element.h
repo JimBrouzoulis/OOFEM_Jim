@@ -323,7 +323,7 @@ public:
      * @param answer Local vector of unknowns.
      */
     void computeVectorOf(ValueModeType u, TimeStep *tStep, FloatArray &answer);
-    void computeVectorOf(const IntArray &dofIDMask, ValueModeType u, TimeStep *tStep, FloatArray &answer, bool padding = false);
+    virtual void computeVectorOf(const IntArray &dofIDMask, ValueModeType u, TimeStep *tStep, FloatArray &answer, bool padding = false);
     /**
      * Boundary version of computeVectorOf.
      * @param bNodes Boundary nodes.

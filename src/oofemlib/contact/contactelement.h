@@ -75,6 +75,8 @@ private:
     
 protected:
     bool inContact;
+    int petrubedEquation;
+    
 public:
     IntegrationRule *integrationRule;
     /// Constructor.
@@ -93,10 +95,16 @@ public:
     virtual void giveDofManagersToAppendTo(IntArray &answer) { answer = {}; }; 
     
     
-    virtual void computeContactForces(FloatArray &answer, TimeStep *tStep, CharType type, ValueModeType mode,
-                                const UnknownNumberingScheme &s, Domain *domain, FloatArray *eNorms) = 0;   
+    virtual void computeContactForces(FloatArray &answer, TimeStep *tStep) = 0;   
     
     virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep) = 0;
+    
+    // numerical tangent
+    virtual void computeNumContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
+    void addNumericalPerturbationToEq(int eq) { this->petrubedEquation = eq; };
+    void resetNumericalPerturbation() { this->petrubedEquation = 0; };
+    virtual void computeVectorOf(const IntArray &dofIDMask, ValueModeType u, TimeStep *tStep, FloatArray &answer, bool padding = false);
+    
     
     
     virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s) = 0;

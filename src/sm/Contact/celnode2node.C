@@ -46,6 +46,7 @@ Node2NodeContact :: Node2NodeContact(int num, Domain *d) : ContactElement(num, d
 {   
     this->area = 1.0;   // should be optional parameter
     this->epsN = 1.0e6; // penalty - should be given by 'contactmaterial'
+    this->numberOfDofMans = 2;
 };   
   
 int
@@ -71,11 +72,12 @@ void
 Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
 {
 
-    FloatArray xs, xm, uS, uM;
+    FloatArray xs, xm, uS, uM, ae;
     xs = *this->giveDofManager(1)->giveCoordinates();
     xm = *this->giveDofManager(2)->giveCoordinates();
-    this->giveDofManager(1)->giveUnknownVector(uS, {D_u, D_v, D_w}, VM_Total, tStep, true);
-    this->giveDofManager(2)->giveUnknownVector(uM, {D_u, D_v, D_w}, VM_Total, tStep, true);
+    this->computeVectorOf( {D_u, D_v, D_w}, VM_Total, tStep, ae, true); // element solution vector
+    uS = { ae.at(1), ae.at(2), ae.at(3) };
+    uM = { ae.at(4), ae.at(5), ae.at(6) };
     
     xs.add(uS);
     xm.add(uM);
@@ -119,8 +121,7 @@ Node2NodeContact :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Floa
 
 
 void
-Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep, CharType type, ValueModeType mode,
-                                const UnknownNumberingScheme &s, Domain *domain, FloatArray *eNorms)
+Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 {
     answer.clear();
     FloatArray gap, C;
@@ -235,7 +236,8 @@ Node2NodeContactL :: Node2NodeContactL(int num, Domain *d) : Node2NodeContact(nu
 void
 Node2NodeContactL :: giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s)
 {
-  
+    //TODO maybe replace with element::giveLocationArray later but this requires to have separate methods for 1d,2d, 3d as
+    // the dofid's must exist in the nodes 
     Node2NodeContact :: giveLocationArray(answer, s);
     
     // Add one lagrange dof
@@ -243,14 +245,13 @@ Node2NodeContactL :: giveLocationArray(IntArray &answer, const UnknownNumberingS
         Dof *dof= this->giveDofManager(1)->giveDofWithID( (DofIDItem)this->giveDofIdArray().at(1) );
         answer.followedBy( s.giveDofEquationNumber(dof) );
     }
-
+    
 }    
 
 
 
 void
-Node2NodeContactL :: computeContactForces(FloatArray &answer, TimeStep *tStep, CharType type, ValueModeType mode,
-                                const UnknownNumberingScheme &s, Domain *domain, FloatArray *eNorms)
+Node2NodeContactL :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 {
   
     //Loop through all the master objects and let them do their thing

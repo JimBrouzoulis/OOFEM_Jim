@@ -60,9 +60,9 @@ ContactDefinitionNode2Node :: initializeFrom(InputRecord *ir)
     
     Domain *domain = this->giveContactManager()->giveDomain();
     for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
-        ContactElement *master = new Node2NodeContact( domain->giveDofManager(masterNodes.at(i)),
-                                                       domain->giveDofManager(slaveNodes.at(i)));
-
+//         ContactElement *master = new Node2NodeContact( domain->giveDofManager(masterNodes.at(i)),
+//                                                        domain->giveDofManager(slaveNodes.at(i)));
+ContactElement *master = new Node2NodeContact( domain->giveDofManager(slaveNodes.at(i)), domain->giveDofManager(masterNodes.at(i)));
         this->addContactElement(master);
     }
     
@@ -91,8 +91,7 @@ ContactDefinitionNode2NodeL :: initializeFrom(InputRecord *ir)
     
     Domain *domain = this->giveContactManager()->giveDomain();
     for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
-        ContactElement *master = new Node2NodeContactL( domain->giveDofManager(masterNodes.at(i)),
-                                                        domain->giveDofManager(slaveNodes.at(i)) );
+        ContactElement *master = new Node2NodeContactL(  domain->giveDofManager(slaveNodes.at(i)), domain->giveDofManager(masterNodes.at(i)) );
 
         this->addContactElement(master);
     }

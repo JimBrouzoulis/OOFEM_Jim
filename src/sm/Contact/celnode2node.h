@@ -60,10 +60,11 @@ class OOFEM_EXPORT Node2NodeContact : public ContactElement
 {
 protected:
     ContactDefinition *cDef;
-
-private:
     DofManager *masterNode;
     DofManager *slaveNode;
+    
+private:
+    
     
     // should be set by input:
     double area; // The area associated with the node (default = 1)- in order to represent some physical dimension.  
@@ -103,8 +104,8 @@ protected:
     ContactDefinition *cDef;
 
 private:
-    DofManager *masterNode;
-    DofManager *slaveNode;
+//     DofManager *masterNode;
+//     DofManager *slaveNode;
     int lagrangeId; // dof Id associated with the Lagrange multiplier
     
     // should be set by input:

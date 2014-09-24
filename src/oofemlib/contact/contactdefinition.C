@@ -123,14 +123,12 @@ ContactDefinition :: computeContactForces(FloatArray &answer, TimeStep *tStep, C
     // TODO ask masters that are potentially in contact and not everyone
     for ( ContactElement *master : this->masterElementList ) {
         
-        // These acts as external forces so move them to the lhs
         master->computeContactForces(Fc, tStep, type, mode, s, domain, eNorms);
-        Fc.negated();
-        
+     
         if ( Fc.giveSize() ) {
             master->giveLocationArray(locArray, s);
             answer.assemble(Fc, locArray);
-        
+        //locArray.printYourself("loc");
           if ( eNorms ) {
               eNorms->assembleSquared( Fc, locArray );
           }
@@ -151,17 +149,14 @@ ContactDefinition :: computeContactTangent(SparseMtrx *answer, TimeStep *tStep,
     
     for ( ContactElement *master : this->masterElementList ) {
         
-        //if ( master->isInContact() ) { // tangent becomes singular with this
-            //printf("node in contact: computeContactTangent\n\n");
-            master->computeContactTangent(Kc, type, tStep);
-            // do this in contact element?
-            Kc.negated(); // should be negated!
-           
-            master->giveLocationArray(locArrayR, r_s);
-            master->giveLocationArray(locArrayC, c_s);
-            
-            answer->assemble(locArrayR, locArrayC, Kc);
-        //}
+  
+        master->computeContactTangent(Kc, type, tStep);
+        
+        master->giveLocationArray(locArrayR, r_s);
+        master->giveLocationArray(locArrayC, c_s);
+        
+        answer->assemble(locArrayR, locArrayC, Kc);
+     
     }
     
   

@@ -42,7 +42,7 @@ namespace oofem {
   
   
   
-Node2NodeContact :: Node2NodeContact(DofManager *master, DofManager *slave) : ContactElement()
+Node2NodeContact :: Node2NodeContact(DofManager *slave, DofManager *master) : ContactElement()
 {   
     this->masterNode = master;
     this->slaveNode = slave;
@@ -79,6 +79,7 @@ Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
     xm = *this->masterNode->giveCoordinates();
     this->slaveNode->giveUnknownVector(uS, {D_u, D_v, D_w}, VM_Total, tStep, true);
     this->masterNode->giveUnknownVector(uM, {D_u, D_v, D_w}, VM_Total, tStep, true);
+    
     xs.add(uS);
     xm.add(uM);
     FloatArray dx = xs-xm;
@@ -88,10 +89,10 @@ Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
     
     //printf("normal gap = %e \n", answer.at(1));
     if ( answer.at(1) < 0.0 ) {
-        //printf("normal gap = %e \n", answer.at(1));
-        this->inContact = true; // store in gp?
+        printf("normal gap = %e \n", answer.at(1));
+        //this->inContact = true; // store in gp?
     } else {
-        this->inContact = false;
+        //this->inContact = false;
     }
     
 }
@@ -146,7 +147,7 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep, Ch
         // compute load vector
         // fc = C^T * traction * A, Area - should be optional par
         answer = t.at(1) * this->area * C;
-          
+        answer.printYourself("fc");  
     }
   
 }
@@ -166,7 +167,8 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
     answer.beDyadicProductOf(C,C);
     // this is the interface stiffness and should be obtained from that model
     answer.times( this->epsN * this->area );
-    answer.negated();
+    //answer.printYourself("K");
+    //answer.negated();
 
     if( gap.at(1) > 0.0 ) {
         answer.zero();
@@ -194,7 +196,7 @@ Node2NodeContact :: giveLocationArray(IntArray &answer, const UnknownNumberingSc
     for ( int i = 1; i <= dofIdArray.giveSize(); i++ ) {
         if ( this->masterNode->hasDofID( (DofIDItem)dofIdArray.at(i) ) ) { // add corresponding number
             Dof *dof= this->masterNode->giveDofWithID( (DofIDItem)dofIdArray.at(i) );
-            answer.at(i) = s.giveDofEquationNumber( dof );
+            answer.at(3+i) = s.giveDofEquationNumber( dof );
         } 
     }
 
@@ -202,10 +204,9 @@ Node2NodeContact :: giveLocationArray(IntArray &answer, const UnknownNumberingSc
     for ( int i = 1; i <= dofIdArray.giveSize(); i++ ) {
         if ( this->slaveNode->hasDofID( (DofIDItem)dofIdArray.at(i) ) ) { // add corresponding number
             Dof *dof= this->slaveNode->giveDofWithID( (DofIDItem)dofIdArray.at(i) );
-            answer.at(3 + i) = s.giveDofEquationNumber( dof );
+            answer.at(i) = s.giveDofEquationNumber( dof );
         } 
     }    
-    
 }    
 
 
@@ -237,10 +238,10 @@ Node2NodeContact :: setupIntegrationPoints()
 // node 2 node Lagrange
 
 
-Node2NodeContactL :: Node2NodeContactL(DofManager *master, DofManager *slave) : Node2NodeContact(master, slave)
+Node2NodeContactL :: Node2NodeContactL(DofManager *slave, DofManager *master) : Node2NodeContact(slave, master)
 {   
-    this->masterNode = master;
-    this->slaveNode = slave;
+//     this->masterNode = master;
+//     this->slaveNode = slave;
     this->area = 1.0;
 };   
 
@@ -253,11 +254,11 @@ Node2NodeContactL :: giveLocationArray(IntArray &answer, const UnknownNumberingS
     Node2NodeContact :: giveLocationArray(answer, s);
     
     // Add one lagrange dof
-    if ( this->masterNode->hasDofID( (DofIDItem)this->giveDofIdArray().at(1) ) ) { 
-        Dof *dof= this->masterNode->giveDofWithID( (DofIDItem)this->giveDofIdArray().at(1) );
+    if ( this->slaveNode->hasDofID( (DofIDItem)this->giveDofIdArray().at(1) ) ) { 
+        Dof *dof= this->slaveNode->giveDofWithID( (DofIDItem)this->giveDofIdArray().at(1) );
         answer.followedBy( s.giveDofEquationNumber(dof) );
     }
-    
+
 }    
 
 
@@ -278,14 +279,15 @@ Node2NodeContactL :: computeContactForces(FloatArray &answer, TimeStep *tStep, C
     
     // compute load vector
     // for Lagrange: fc = traction * C^T * A (traction = lambda)
-    FloatArray temp = t.at(1) *this->area * C;
+    FloatArray temp = t.at(1) * this->area * C;
     
     answer.resize( C.giveSize() + 1);
     answer.zero();
     if( gap.at(1) < 0.0 ) {
         answer.addSubVector(temp,1);
-        answer.at( C.giveSize() + 1 ) = -gap.at(1);
+        answer.at( C.giveSize() + 1 ) = gap.at(1);
     }
+  
 }
     
 
@@ -311,10 +313,10 @@ Node2NodeContactL :: computeContactTangent(FloatMatrix &answer, CharType type, T
         answer.addSubVectorCol(C, 1, sz + 1);
         answer.addSubVectorRow(C, sz + 1, 1);
     }
-    
+
     //TODO need to add a small number for the solver
     for ( int i = 1; i <= 7; i++ ) {
-        answer.at(i,i) += 1.0e-8;
+        answer.at(i,i) += 1.0e-6;
     }
 
 }
@@ -328,10 +330,9 @@ Node2NodeContactL :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Flo
     // gap should be in a local system
     if ( gap.at(1) < 0.0 ) {
         
-        Dof *dof = masterNode->giveDofWithID( this->giveDofIdArray().at(1) );
+        Dof *dof = slaveNode->giveDofWithID( this->giveDofIdArray().at(1) );
         double lambda = dof->giveUnknown(VM_Total, tStep);
         t = {lambda, 0.0, 0.0};
-        //printf("lambda %e \n\n", lambda);
     } else {
         t = {0.0, 0.0, 0.0};
     }
@@ -342,7 +343,7 @@ Node2NodeContactL :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Flo
 void
 Node2NodeContactL :: giveDofManagersToAppendTo(IntArray &answer)
 {
-    answer = {this->masterNode->giveNumber()};
+    answer = {this->slaveNode->giveNumber()};
 }
     
     

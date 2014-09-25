@@ -62,7 +62,7 @@ ContactDefinitionNode2Node :: initializeFrom(InputRecord *ir)
     Domain *domain = this->giveContactManager()->giveDomain();
     for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
       
-        ContactElement *master = new Node2NodeContact(i, domain);
+        ContactElement *master = new Node2NodeContact(i, domain, this);
         
         // initialize contact element from dynamic input record
         DynamicInputRecord *dir;
@@ -97,7 +97,7 @@ ContactDefinitionNode2NodeL :: initializeFrom(InputRecord *ir)
     
     Domain *domain = this->giveContactManager()->giveDomain();
     for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
-        ContactElement *master = new Node2NodeContactL(i, domain );
+        ContactElement *master = new Node2NodeContactL(i, domain, this);
 
         // initialize contact element from dynamic input record
         DynamicInputRecord *dir;

@@ -49,11 +49,12 @@
 
 namespace oofem {
 
-ContactElement :: ContactElement(int num, Domain *d) : Element(num, d)
+ContactElement :: ContactElement(int num, Domain *d, ContactDefinition *cDef) : Element(num, d)
 { 
     this->dofIdArray.clear();
     this->integrationRule = NULL;
     this->petrubedEquation = 0;
+    this->cDef = cDef;
 };  
   
 

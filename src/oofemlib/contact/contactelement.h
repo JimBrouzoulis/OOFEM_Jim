@@ -65,11 +65,13 @@ class IntegrationRule;
 class OOFEM_EXPORT ContactElement : public Element
 {
 private:
+    // Pointer to its contact definition
     ContactDefinition *cDef;
+
     
-    std :: vector< ContactElement *> slaveObjectList; // remove?
+    //std :: vector< ContactElement *> slaveObjectList; // remove?
     
-    IntArray dofIdArray;
+    IntArray dofIdArray; // stores dofid's the element adds
     
 
     
@@ -80,15 +82,16 @@ protected:
 public:
     IntegrationRule *integrationRule;
     /// Constructor.
-    ContactElement(int num, Domain *d);
+    ContactElement(int num, Domain *d, ContactDefinition *cDef);
     /// Destructor.
     virtual ~ContactElement(){};
 
     virtual void setupIntegrationPoints(){};
     
+    ContactDefinition *giveContactDefinition() { return this->cDef; };
     
-    ContactElement *giveSlave(const int num) { return slaveObjectList[num-1]; }; 
-    int giveNumberOfSlaves() { return slaveObjectList.size(); };
+    //ContactElement *giveSlave(const int num) { return slaveObjectList[num-1]; }; 
+    //int giveNumberOfSlaves() { return slaveObjectList.size(); };
     virtual int instanciateYourself(DataReader *dr){ return 1; };
     //virtual const char *giveClassName() const { return "ContactDefinition"; }
     bool isInContact() { return inContact; };

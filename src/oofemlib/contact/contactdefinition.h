@@ -69,7 +69,10 @@ private:
     std :: vector< ContactElement *> masterElementList;
     int numberOfConstraintEq; // used when creating new dofs
     
-    ContactMaterial *contactMaterial;
+    // Friction model number (if > 0, then friction is active)
+    int contactMaterialNumber;
+    ContactMaterial *contactMaterial; // use this instead?
+    
     
 public:
 
@@ -88,6 +91,10 @@ public:
     ContactManager *giveContactManager() { return this->cMan; };
     virtual int giveNumberOfConstraintEqToAdd() { return this->numberOfConstraintEq; }; 
     virtual void setNumberOfConstraintEqToAdd(const int number) { this->numberOfConstraintEq = number; };
+    
+    //ContactMaterial *giveContactMaterial() { return this->contactMaterial; }; //TODO use this later when material is created
+    virtual int giveContactMaterialNum() { return this->contactMaterialNumber; };
+    
     virtual void computeContactForces(FloatArray &answer, TimeStep *tStep, CharType type, ValueModeType mode,
                                 const UnknownNumberingScheme &s, Domain *domain, FloatArray *eNorms);
     

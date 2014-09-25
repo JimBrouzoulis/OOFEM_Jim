@@ -72,8 +72,10 @@ private:
     FloatArray normal;
 public:
 
+    double epsT; //TODO temporary for debug
+    
     /// Constructor.
-    Node2NodeContact(int num, Domain *d);
+    Node2NodeContact(int num, Domain *d, ContactDefinition *cDef);
     /// Destructor.
     virtual ~Node2NodeContact(){};
     virtual int instanciateYourself(DataReader *dr);
@@ -82,6 +84,7 @@ public:
     virtual void computeGap(FloatArray &answer, TimeStep *tStep);
     virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
     virtual void computeCmatrixAt(GaussPoint *gp, FloatArray &answer, TimeStep *TimeStep);
+    virtual void computeTarraysAt(GaussPoint *gp, FloatArray &T1, FloatArray &T2, TimeStep *TimeStep);
     FloatArray &giveNormal() { return this->normal; };
     
     
@@ -89,6 +92,7 @@ public:
     virtual void computeContactForces(FloatArray &answer, TimeStep *tStep);    
     
     virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
+    virtual void computeFrictionTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
     
     virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
     virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactP_Name; }
@@ -112,7 +116,7 @@ private:
 public:
 
     /// Constructor.
-    Node2NodeContactL(int num, Domain *d);
+    Node2NodeContactL(int num, Domain *d, ContactDefinition *cDef);
     /// Destructor.
     virtual ~Node2NodeContactL(){};
     virtual void giveDofManagersToAppendTo(IntArray &answer); 

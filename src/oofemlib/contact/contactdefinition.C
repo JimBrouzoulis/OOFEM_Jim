@@ -50,6 +50,7 @@ ContactDefinition :: ContactDefinition(ContactManager *cMan)
 {
     this->cMan = cMan;
     this->numberOfConstraintEq = 0;
+    this->contactMaterialNumber = 0; //TODO setting this to a positive value will give a tangential stick case.
 }
     /// Destructor.
 ContactDefinition :: ~ContactDefinition()

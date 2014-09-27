@@ -51,6 +51,7 @@ ContactDefinitionNode2Node :: initializeFrom(InputRecord *ir)
 {
  
     IRResultType result; // Required by IR_GIVE_FIELD macro
+    ContactDefinition :: initializeFrom(ir);
     
     IntArray masterNodes;
     IntArray slaveNodes;
@@ -89,6 +90,8 @@ IRResultType
 ContactDefinitionNode2NodeL :: initializeFrom(InputRecord *ir)
 {
     IRResultType result; // Required by IR_GIVE_FIELD macro
+    ContactDefinition :: initializeFrom(ir);
+    
     
     IntArray masterNodes;
     IntArray slaveNodes;

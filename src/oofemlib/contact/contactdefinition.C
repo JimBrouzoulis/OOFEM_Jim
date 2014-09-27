@@ -41,6 +41,7 @@
 #include "sparsemtrx.h"
 #include "masterdof.h"
 #include "classfactory.h"
+#include "material.h"
 
 namespace oofem {
 REGISTER_ContactDefinition(ContactDefinition)
@@ -57,7 +58,17 @@ ContactDefinition :: ~ContactDefinition()
 {
 }
 
-
+IRResultType
+ContactDefinition :: initializeFrom(InputRecord *ir)
+{
+ 
+    IRResultType result; // Required by IR_GIVE_FIELD macro
+    
+    
+    IR_GIVE_OPTIONAL_FIELD(ir, this->contactMaterialNumber, _IFT_ContactDefinition_Material);
+    
+    return IRRT_OK;
+}
 
 
 int
@@ -67,6 +78,12 @@ ContactDefinition :: instanciateYourself(DataReader *dr)
     for ( ContactElement *cEl : this->masterElementList ) { 
         cEl->instanciateYourself(dr);
         cEl->setupIntegrationPoints();
+    }
+
+    // Set constitutive model for the contact interface
+    ///@todo should check if it is an interface material
+    if ( this->contactMaterialNumber ) {
+        this->contactMaterial = this->giveContactManager()->giveDomain()->giveMaterial(this->contactMaterialNumber);
     }
     
   return 1;

@@ -96,6 +96,10 @@ public:
     
     virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
     virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactP_Name; }
+    
+    
+    virtual void computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer);
+    
 };
 
 

@@ -38,7 +38,7 @@
 #include "chartype.h"
 #include "valuemodetype.h"
 #include "element.h"
-
+#include "contact/contactdefinition.h"
 #include <vector>
 
 
@@ -51,7 +51,6 @@
 namespace oofem {
 class Domain;
 class ContactManager;
-class ContactDefinition;
 class SparseMtrx;
 class TimeStep;
 class DofManager;
@@ -90,8 +89,7 @@ public:
     
     ContactDefinition *giveContactDefinition() { return this->cDef; };
     
-    //ContactElement *giveSlave(const int num) { return slaveObjectList[num-1]; }; 
-    //int giveNumberOfSlaves() { return slaveObjectList.size(); };
+    Material *giveContactMaterial() { return this->cDef->giveContactMaterial(); }; 
     virtual int instanciateYourself(DataReader *dr){ return 1; };
     //virtual const char *giveClassName() const { return "ContactDefinition"; }
     bool isInContact() { return inContact; };

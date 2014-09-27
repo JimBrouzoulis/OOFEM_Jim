@@ -43,6 +43,7 @@
 ///@name Input fields for _IFT_ContactDefinition
 //@{
 #define _IFT_ContactDefinition_Name "contactdefinition"
+#define _IFT_ContactDefinition_Material "material"
 //@}
 
 namespace oofem {
@@ -52,7 +53,7 @@ class ContactObject;
 class ContactElement;
 class TimeStep;
 
-class ContactMaterial; // write this
+class Material; 
 
 
 /**
@@ -71,7 +72,7 @@ private:
     
     // Friction model number (if > 0, then friction is active)
     int contactMaterialNumber;
-    ContactMaterial *contactMaterial; // use this instead?
+    Material *contactMaterial; // use this instead?
     
     
 public:
@@ -83,7 +84,7 @@ public:
 
     virtual void createContactDofs();
 
-    virtual IRResultType initializeFrom(InputRecord *ir){ return IRRT_OK; };
+    virtual IRResultType initializeFrom(InputRecord *ir);
 
     virtual int instanciateYourself(DataReader *dr);
     virtual const char *giveClassName() const { return "ContactDefinition"; }
@@ -92,7 +93,7 @@ public:
     virtual int giveNumberOfConstraintEqToAdd() { return this->numberOfConstraintEq; }; 
     virtual void setNumberOfConstraintEqToAdd(const int number) { this->numberOfConstraintEq = number; };
     
-    //ContactMaterial *giveContactMaterial() { return this->contactMaterial; }; //TODO use this later when material is created
+    Material *giveContactMaterial() { return this->contactMaterial; }; 
     virtual int giveContactMaterialNum() { return this->contactMaterialNumber; };
     
     virtual void computeContactForces(FloatArray &answer, TimeStep *tStep, CharType type, ValueModeType mode,

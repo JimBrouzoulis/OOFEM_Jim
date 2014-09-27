@@ -35,11 +35,13 @@
 #include "Contact/celnode2node.h"
 #include "floatmatrix.h"
 #include "masterdof.h"
-#include "unknownnumberingscheme.h"
+//#include "unknownnumberingscheme.h"
+
 #include "gaussintegrationrule.h"
-
+#include "gausspoint.h"
 #include "contact/contactdefinition.h"
-
+#include "Materials/InterfaceMaterials/structuralinterfacematerial.h"
+#include "Materials/InterfaceMaterials/structuralinterfacematerialstatus.h"
 namespace oofem {
   
   
@@ -92,7 +94,7 @@ Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
     FloatMatrix orthoBase;
     orthoBase.beLocalCoordSys( this->giveNormal() ); // create an othogonal base from the normal -> [t1^T; t2^T; n^T]
     answer.beProductOf(orthoBase, dx);
-    //answer.printYourself("gap");
+    //
 }
 
 
@@ -131,14 +133,20 @@ Node2NodeContact :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Floa
     
     
     if ( gap.at(3) < 0.0 ) {
-        // Normal traction 
-        t = { 0.0, 0.0, this->epsN * gap.at(3) };
+        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+        mat->giveEngTraction_3d(t, gp, gap, tStep);
+              
+//         // Normal traction 
+//         t = { 0.0, 0.0, this->epsN * gap.at(3) };
+//         
+//         // Add friction...
+//         if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
+//             t.at(1) = this->epsT * gap.at(1);
+//             t.at(2) = this->epsT * gap.at(2);
+//             
+//             
+//         }
         
-        // Add friction...
-        if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-            t.at(1) = this->epsT * gap.at(1);
-            t.at(2) = this->epsT * gap.at(2);
-        }
     } else {
         t = {0.0, 0.0, 0.0};
     }
@@ -155,26 +163,37 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
     answer.clear();
     FloatArray gap, C;
       
-    this->computeGap(gap, tStep);
+    this->computeGap(gap, tStep); // local system
     if ( gap.at(3) < 0.0 ) {
         GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
         FloatArray t;
-        this->computeContactTractionAt(gp, t, gap, tStep);
+        this->computeContactTractionAt(gp, t, gap, tStep); // local system
         
-        this->computeCmatrixAt(gp, C, tStep);
+//         this->computeCmatrixAt(gp, C, tStep);
+//         
+//         // compute load vector
+//         // fc = C^T * traction * A, Area - should be optional par
+//         answer = t.at(3) * this->area * C;
+//         
+//         // Add friction forces
+//         if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
+//             FloatArray T1, T2;
+//             this->computeTarraysAt(gp, T1, T2, tStep);
+//             answer.add( t.at(1) * this->area, T1 );
+//             answer.add( t.at(2) * this->area, T2 );    
+//         }
+//         
         
-        // compute load vector
-        // fc = C^T * traction * A, Area - should be optional par
-        answer = t.at(3) * this->area * C;
+        // new implementation
+        FloatMatrix N;
+        this->computeNmatrixAt(gp, N);
         
-
-        // Add friction forces
-        if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-            FloatArray T1, T2;
-            this->computeTarraysAt(gp, T1, T2, tStep);
-            answer.add( t.at(1) * this->area, T1 );
-            answer.add( t.at(2) * this->area, T2 );    
-        }
+        FloatMatrix globalSys;
+        globalSys.beLocalCoordSys( this->giveNormal() ); // should probably be stored so it is constant
+        t.rotatedWith(globalSys, 't'); // transform to global system
+        answer.beTProductOf(N, t);
+        answer.times(this->area);
+        t.printYourself("trac");
     }
   
 }
@@ -183,27 +202,53 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 void
 Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep)
 {
-   // Need to set up an integration rule 
-    GaussPoint *gp = NULL;
+    GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
     FloatArray gap;
       
     this->computeGap(gap, tStep);
-
-    FloatArray C;
-    this->computeCmatrixAt(gp, C, tStep);
-    answer.beDyadicProductOf(C,C);
-    // this is the interface stiffness and should be obtained from that model
-    answer.times( this->epsN * this->area );
-    
-    // add friction
-    if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-        FloatMatrix KT;
-        this->computeFrictionTangent(KT, type, tStep);
-        answer.add(KT);
-    }
-    
-    if( gap.at(3) > 0.0 ) {
+    if( gap.at(3) < 0.0 ) {
+//         FloatArray C;
+//         this->computeCmatrixAt(gp, C, tStep);
+//         answer.beDyadicProductOf(C,C);
+//         // this is the interface stiffness and should be obtained from that model
+//         answer.times( this->epsN * this->area );
+//         
+        // add friction
+    //     if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
+    //         FloatMatrix KT;
+    //         this->computeFrictionTangent(KT, type, tStep);
+    //         answer.add(KT);
+    //     }
+        
+        FloatMatrix N, D;
+        this->computeNmatrixAt(gp, N);
+        
+        
+        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+        mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
+        
+      
+        
+        FloatMatrix globalSys, DN;
+        globalSys.beLocalCoordSys( this->giveNormal() ); // hould probably be stored so it is constant
+        D.rotatedWith(globalSys, 't');                   // transform to global system
+        DN.beProductOf(D,N);
+        answer.clear();
+        answer.plusProductUnsym(N, DN, this->area);
+        
+        //answer.printYourself("after");
+                
+        
+    } else {
+        answer.resize(6,6);
         answer.zero();
+    }
+    //answer.printYourself("after");
+    
+    
+    
+    if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
+        // new implementation
     }
 }
   
@@ -211,9 +256,11 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
 void
 Node2NodeContact :: computeFrictionTangent(FloatMatrix &answer, CharType type, TimeStep *tStep)
 {
+   // TODO change chartype
     GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
-    
-    
+    StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+    mat->give3dStiffnessMatrix_Eng(answer, TangentStiffness, gp, tStep);
+    /*
     // Stick case
     FloatArray T1, T2;
     this->computeTarraysAt(gp, T1, T2, tStep);
@@ -223,11 +270,17 @@ Node2NodeContact :: computeFrictionTangent(FloatMatrix &answer, CharType type, T
     answer.add(temp);
     answer.times( this->area * this->epsT );
     
-    // Slip case
+    // Slip case*/
     
     
 }
-  
+
+void
+Node2NodeContact :: computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer)
+{
+    // N = [I, -I]
+    answer.beNMatrixOf( {1, -1}, 3 );
+}
 
 
 void
@@ -319,30 +372,28 @@ Node2NodeContactL :: computeContactForces(FloatArray &answer, TimeStep *tStep)
     //Loop through all the master objects and let them do their thing
     FloatArray gap, C, Fc;
     this->computeGap(gap, tStep);
-    
-    GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
-    FloatArray t;
-    this->computeContactTractionAt(gp, t ,gap, tStep);
-    this->computeCmatrixAt(gp, C, tStep);
-    
-    // compute load vector
-    // for Lagrange: fc = traction * C^T * A (traction = lambda)
-    FloatArray temp = t.at(3) * this->area * C;
-    
-
-    // Add friction forces
-    if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-        FloatArray T1, T2;
-        this->computeTarraysAt(gp, T1, T2, tStep);
-        temp.add( t.at(1) * this->area, T1 );
-        temp.add( t.at(2) * this->area, T2 );    
-    }    
-    
-    answer.resize( C.giveSize() + 1);
+    answer.resize( gap.giveSize() * 2 + 1);
     answer.zero();
+        
     if( gap.at(3) < 0.0 ) {
+    
+        GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
+        FloatArray t;
+        this->computeContactTractionAt(gp, t ,gap, tStep);
+        
+        // new implementation
+        FloatArray temp;
+        FloatMatrix N;
+        this->computeNmatrixAt(gp, N);
+        
+        FloatMatrix globalSys;
+        globalSys.beLocalCoordSys( this->giveNormal() ); // should probably be stored so it is constant
+        t.rotatedWith(globalSys, 't'); // transform to global system
+        temp.beTProductOf(N, t);
+        temp.times(this->area);
+
         answer.addSubVector(temp,1);
-        answer.at( C.giveSize() + 1 ) = gap.at(3);
+        answer.at( temp.giveSize() + 1 ) = gap.at(3);
     }
   
 }
@@ -360,25 +411,33 @@ Node2NodeContactL :: computeContactTangent(FloatMatrix &answer, CharType type, T
     
     if( gap.at(3) < 0.0 ) {
       
-        GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
+      GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
+    
+      FloatMatrix N, D;
+      this->computeNmatrixAt(gp, N);
+      
+      StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+      mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
+      D.at(3,3) = 0.0;
         
-        FloatArray C;
-        this->computeCmatrixAt(gp, C, tStep);
-        int sz = C.giveSize();
-        C.times(this->area);
+      FloatMatrix globalSys, DN, temp;
+      globalSys.beLocalCoordSys( this->giveNormal() ); // should probably be stored so it is constant
+      D.rotatedWith(globalSys, 't');                   // transform to global system
+      DN.beProductOf(D,N);
+      temp.clear();
+      temp.plusProductUnsym(N, DN, this->area);
+ 
+      FloatArray C;
+      this->computeCmatrixAt(gp, C, tStep);
+      int sz = C.giveSize();
+      answer.resize(sz+1,sz+1);
+      answer.zero();
+      answer.assemble(temp, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6} );
+      answer.addSubVectorCol(C, 1, sz + 1);
+      answer.addSubVectorRow(C, sz + 1, 1);
         
-        answer.addSubVectorCol(C, 1, sz + 1);
-        answer.addSubVectorRow(C, sz + 1, 1);
-        
-        
-        // add friction
-        if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-            FloatMatrix KT;
-            this->computeFrictionTangent(KT, type, tStep);
-            answer.assemble(KT,{1, 2, 3, 4, 5, 6},{1, 2, 3, 4, 5, 6});
-        }
-        
-        
+      //answer.printYourself("after");
+      
     }
 
     //TODO need to add a small number for the solver
@@ -386,6 +445,9 @@ Node2NodeContactL :: computeContactTangent(FloatMatrix &answer, CharType type, T
         answer.at(i,i) += 1.0e-6;
     }
 
+    
+    
+    
 }
   
 
@@ -396,15 +458,13 @@ Node2NodeContactL :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Flo
     // should be replaced with a call to constitutive model
     // gap should be in a local system
     if ( gap.at(3) < 0.0 ) {
-        
+        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+        mat->giveEngTraction_3d(t, gp, gap, tStep);
+              
         Dof *dof = this->giveDofManager(1)->giveDofWithID( this->giveDofIdArray().at(1) );
         double lambda = dof->giveUnknown(VM_Total, tStep);
-        t = {0.0, 0.0, lambda};
-        
-        if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-            t.at(1) = this->epsT * gap.at(1);
-            t.at(2) = this->epsT * gap.at(2);
-        }
+        t.at(3) = lambda;
+
     } else {
         t = {0.0, 0.0, 0.0};
     }

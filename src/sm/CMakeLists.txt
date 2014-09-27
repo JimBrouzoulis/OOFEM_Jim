@@ -208,6 +208,7 @@ set (sm_interface_materials
     Materials/InterfaceMaterials/intmatcoulombcontact.C
     Materials/InterfaceMaterials/intmatdummycz.C    
     Materials/InterfaceMaterials/Contact/regularizedcoulomb.C
+    Materials/InterfaceMaterials/Contact/defaultcontactmat.C
     Materials/InterfaceMaterials/Deprecated/isointerfacedamage01.C
     Materials/InterfaceMaterials/Deprecated/isointerfacedamage02.C
     Materials/InterfaceMaterials/Deprecated/simpleinterfacemat.C

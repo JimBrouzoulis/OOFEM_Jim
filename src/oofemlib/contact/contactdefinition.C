@@ -43,6 +43,10 @@
 #include "classfactory.h"
 #include "material.h"
 
+///@todo Create a StructuralContactDefinition and move this part.
+#include "../sm/Materials/InterfaceMaterials/Contact/defaultcontactmat.h"
+#include "dynamicinputrecord.h"
+
 namespace oofem {
 REGISTER_ContactDefinition(ContactDefinition)
 
@@ -84,6 +88,9 @@ ContactDefinition :: instanciateYourself(DataReader *dr)
     ///@todo should check if it is an interface material
     if ( this->contactMaterialNumber ) {
         this->contactMaterial = this->giveContactManager()->giveDomain()->giveMaterial(this->contactMaterialNumber);
+    } else {
+        // Create a default material
+        this->contactMaterial = new DefaultContactMat(-1, this->giveContactManager()->giveDomain() );
     }
     
   return 1;

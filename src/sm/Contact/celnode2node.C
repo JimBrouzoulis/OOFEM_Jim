@@ -193,7 +193,6 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
         t.rotatedWith(globalSys, 't'); // transform to global system
         answer.beTProductOf(N, t);
         answer.times(this->area);
-        t.printYourself("trac");
     }
   
 }
@@ -235,21 +234,13 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
         DN.beProductOf(D,N);
         answer.clear();
         answer.plusProductUnsym(N, DN, this->area);
-        
-        //answer.printYourself("after");
                 
         
     } else {
         answer.resize(6,6);
         answer.zero();
     }
-    //answer.printYourself("after");
     
-    
-    
-    if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-        // new implementation
-    }
 }
   
   
@@ -435,8 +426,6 @@ Node2NodeContactL :: computeContactTangent(FloatMatrix &answer, CharType type, T
       answer.assemble(temp, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6} );
       answer.addSubVectorCol(C, 1, sz + 1);
       answer.addSubVectorRow(C, sz + 1, 1);
-        
-      //answer.printYourself("after");
       
     }
 

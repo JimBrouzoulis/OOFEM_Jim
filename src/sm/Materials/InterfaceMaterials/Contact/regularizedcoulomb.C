@@ -60,7 +60,6 @@ RegularizedCoulomb :: giveEngTraction_3d( FloatArray &answer, GaussPoint *gp, co
     computeEngTraction_3d( answer, gp, gap, tStep);
     
     // Update gp    
-    //status->setTempShearStressShift( tempShearStressShift );
     status->letTempJumpBe( gap );
     status->letTempTractionBe( answer );
 
@@ -127,7 +126,6 @@ RegularizedCoulomb :: give3dStiffnessMatrix_Eng( FloatMatrix &answer, MatRespons
 
     this->computeEngTraction_3d( t0, gp, gap0, tStep);
     
-    //const int numSpaceDim = jump.giveSize();
     const double gN = gap0.at( 3 );
     answer.resize(3,3);
     answer.zero();
@@ -159,17 +157,16 @@ RegularizedCoulomb :: initializeFrom(InputRecord *ir)
 {
     IRResultType result;                // Required by IR_GIVE_FIELD macro
 
+    IR_GIVE_FIELD(ir, this->mu, _IFT_RegularizedCoulomb_mu);
+
+    // Optional
     this->epsN = 1.0e6;
     this->epsT = 1.0e6;
-    this->epsReg = 1.0e-6;
-    this->mu = 0.0;
-    IR_GIVE_OPTIONAL_FIELD(ir, this->mu, _IFT_RegularizedCoulomb_mu);
+    this->epsReg = 1.0e-6;    
+    IR_GIVE_OPTIONAL_FIELD(ir, this->epsN, _IFT_RegularizedCoulomb_epsN);
+    IR_GIVE_OPTIONAL_FIELD(ir, this->epsT, _IFT_RegularizedCoulomb_epsT);
+    IR_GIVE_OPTIONAL_FIELD(ir, this->epsReg, _IFT_RegularizedCoulomb_epsReg);
     
-//     IR_GIVE_FIELD(ir, kn, _IFT_IntMatCoulombContact_kn);
-    
-//     IR_GIVE_OPTIONAL_FIELD(ir, stiffCoeff, _IFT_IntMatCoulombContact_stiffCoeff);
-//     IR_GIVE_OPTIONAL_FIELD(ir, normalClearance, _IFT_IntMatCoulombContact_normalClearance);
-
     return StructuralInterfaceMaterial :: initializeFrom( ir );
 }
 
@@ -177,22 +174,16 @@ RegularizedCoulomb :: initializeFrom(InputRecord *ir)
 void
 RegularizedCoulomb :: giveInputRecord(DynamicInputRecord &input)
 {
-//     StructuralInterfaceMaterial :: giveInputRecord(input);
-//     input.setField(this->kn, _IFT_IntMatCoulombContact_kn);
-//     input.setField(this->frictCoeff, _IFT_IntMatCoulombContact_frictCoeff);
-//     input.setField(this->stiffCoeff, _IFT_IntMatCoulombContact_stiffCoeff);
-//     input.setField(this->normalClearance, _IFT_IntMatCoulombContact_normalClearance);
+     StructuralInterfaceMaterial :: giveInputRecord(input);
+     input.setField(this->mu, _IFT_RegularizedCoulomb_mu);
+     input.setField(this->epsN, _IFT_RegularizedCoulomb_epsN);
+     input.setField(this->epsT, _IFT_RegularizedCoulomb_epsT);
+     input.setField(this->epsReg, _IFT_RegularizedCoulomb_epsReg);
 }
 
 
 RegularizedCoulombStatus :: RegularizedCoulombStatus(int n, Domain *d, GaussPoint *g) : StructuralInterfaceMaterialStatus(n, d, g)
 {
-//     int size = d->giveNumberOfSpatialDimensions() - 1;
-//     shearStressShift.resize(size);
-//     tempShearStressShift.resize(size);
-//     shearStressShift.zero();
-//     tempShearStressShift.zero();
-    //this->initTempStatus();
 }
 
 
@@ -203,14 +194,7 @@ RegularizedCoulombStatus :: ~RegularizedCoulombStatus()
 void
 RegularizedCoulombStatus :: printOutputAt(FILE *file, TimeStep *tStep)
 {
-//     StructuralInterfaceMaterialStatus::printOutputAt( file, tStep );
-//     fprintf(file, "status { ");
-//     if(this->shearStressShift.giveSize() == 2) {
-//         fprintf( file, "shearStressShift (%f, %f)", this->shearStressShift.at( 1 ), this->shearStressShift.at( 2 ) );
-//     } else if(this->shearStressShift.giveSize() == 1) {
-//         fprintf( file, "shearStressShift (%f)", this->shearStressShift.at( 1 ) );
-//     }
-//     fprintf(file, "}\n");
+     StructuralInterfaceMaterialStatus::printOutputAt( file, tStep );
 }
 
 
@@ -218,7 +202,6 @@ void
 RegularizedCoulombStatus :: initTempStatus()
 {
     StructuralInterfaceMaterialStatus::initTempStatus( );
-    //tempShearStressShift = shearStressShift;
 }
 
 

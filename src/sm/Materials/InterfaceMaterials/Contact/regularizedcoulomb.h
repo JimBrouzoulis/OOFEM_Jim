@@ -43,6 +43,9 @@
 //@{
 #define _IFT_RegularizedCoulomb_Name "regularizedcoulomb"
 #define _IFT_RegularizedCoulomb_mu "mu"
+#define _IFT_RegularizedCoulomb_epsN "epsn"
+#define _IFT_RegularizedCoulomb_epsT "epst"
+#define _IFT_RegularizedCoulomb_epsReg "epsreg"
 
 //@}
 //
@@ -50,13 +53,11 @@
 //
 namespace oofem {
 /**
- * This class implements associated Material Status to IntMatCoulombContact.
+ * This class implements the associated Material Status for RegularizedCoulomb.
  */
 class RegularizedCoulombStatus : public StructuralInterfaceMaterialStatus
 {
 protected:
-    FloatArray shearStressShift, tempShearStressShift;
-
 public:
     /// Constructor
     RegularizedCoulombStatus(int n, Domain *d, GaussPoint *g);
@@ -66,11 +67,6 @@ public:
     virtual void printOutputAt(FILE *file, TimeStep *tStep);
 
     virtual void initTempStatus();
-    //virtual void updateYourself(TimeStep *tStep);
-
-    FloatArray giveTempShearStressShift();
-    void setTempShearStressShift(FloatArray newShearStressShift) { tempShearStressShift = newShearStressShift; };
-
 
 };
 
@@ -86,6 +82,7 @@ protected:
     double epsN;
     double epsReg; // regularization parameter
     double mu;     // coefficient of friction
+    
 public:
     /// Constructor
     RegularizedCoulomb( int n, Domain *d );
@@ -114,9 +111,10 @@ public:
     
     virtual IRResultType initializeFrom(InputRecord *ir);
     virtual void giveInputRecord(DynamicInputRecord &input);
-    virtual bool hasAnalyticalTangentStiffness( ) const { return true; }
+    virtual bool hasAnalyticalTangentStiffness( ) const { return false; }
 
     virtual MaterialStatus *CreateStatus(GaussPoint *gp) const { return new RegularizedCoulombStatus(1, domain, gp); }
 };
+
 } // end namespace oofem
-#endif // simpleinterfacemat_h
+#endif // regularizedcoulomb_h

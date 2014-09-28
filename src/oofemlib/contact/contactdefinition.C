@@ -153,7 +153,6 @@ ContactDefinition :: computeContactForces(FloatArray &answer, TimeStep *tStep, C
         if ( Fc.giveSize() ) {
             master->giveLocationArray(locArray, s);
             answer.assemble(Fc, locArray);
-        //locArray.printYourself("loc");
           if ( eNorms ) {
               eNorms->assembleSquared( Fc, locArray );
           }
@@ -179,7 +178,7 @@ ContactDefinition :: computeContactTangent(SparseMtrx *answer, TimeStep *tStep,
         
         master->giveLocationArray(locArrayR, r_s);
         master->giveLocationArray(locArrayC, c_s);
-        
+
         answer->assemble(locArrayR, locArrayC, Kc);
      
     }

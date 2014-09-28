@@ -49,8 +49,6 @@ namespace oofem {
 Node2NodeContact :: Node2NodeContact(int num, Domain *d, ContactDefinition *cDef) : ContactElement(num, d, cDef)
 {   
     this->area = 1.0;   // should be optional parameter
-    this->epsN = 1.0e6; // penalty - should be given by 'contactmaterial'
-    this->epsT = 1.0e6; 
     this->numberOfDofMans = 2;
 };   
   
@@ -94,7 +92,7 @@ Node2NodeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
     FloatMatrix orthoBase;
     orthoBase.beLocalCoordSys( this->giveNormal() ); // create an othogonal base from the normal -> [t1^T; t2^T; n^T]
     answer.beProductOf(orthoBase, dx);
-    //
+
 }
 
 
@@ -135,17 +133,6 @@ Node2NodeContact :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, Floa
     if ( gap.at(3) < 0.0 ) {
         StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
         mat->giveEngTraction_3d(t, gp, gap, tStep);
-              
-//         // Normal traction 
-//         t = { 0.0, 0.0, this->epsN * gap.at(3) };
-//         
-//         // Add friction...
-//         if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-//             t.at(1) = this->epsT * gap.at(1);
-//             t.at(2) = this->epsT * gap.at(2);
-//             
-//             
-//         }
         
     } else {
         t = {0.0, 0.0, 0.0};
@@ -169,22 +156,6 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
         FloatArray t;
         this->computeContactTractionAt(gp, t, gap, tStep); // local system
         
-//         this->computeCmatrixAt(gp, C, tStep);
-//         
-//         // compute load vector
-//         // fc = C^T * traction * A, Area - should be optional par
-//         answer = t.at(3) * this->area * C;
-//         
-//         // Add friction forces
-//         if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-//             FloatArray T1, T2;
-//             this->computeTarraysAt(gp, T1, T2, tStep);
-//             answer.add( t.at(1) * this->area, T1 );
-//             answer.add( t.at(2) * this->area, T2 );    
-//         }
-//         
-        
-        // new implementation
         FloatMatrix N;
         this->computeNmatrixAt(gp, N);
         
@@ -206,27 +177,12 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
       
     this->computeGap(gap, tStep);
     if( gap.at(3) < 0.0 ) {
-//         FloatArray C;
-//         this->computeCmatrixAt(gp, C, tStep);
-//         answer.beDyadicProductOf(C,C);
-//         // this is the interface stiffness and should be obtained from that model
-//         answer.times( this->epsN * this->area );
-//         
-        // add friction
-    //     if ( this->giveContactDefinition()->giveContactMaterialNum() ) {
-    //         FloatMatrix KT;
-    //         this->computeFrictionTangent(KT, type, tStep);
-    //         answer.add(KT);
-    //     }
         
         FloatMatrix N, D;
         this->computeNmatrixAt(gp, N);
         
-        
-        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial* > ( this->giveContactMaterial() );
         mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
-        
-      
         
         FloatMatrix globalSys, DN;
         globalSys.beLocalCoordSys( this->giveNormal() ); // hould probably be stored so it is constant
@@ -234,8 +190,7 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
         DN.beProductOf(D,N);
         answer.clear();
         answer.plusProductUnsym(N, DN, this->area);
-                
-        
+                 
     } else {
         answer.resize(6,6);
         answer.zero();
@@ -244,28 +199,6 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
 }
   
   
-void
-Node2NodeContact :: computeFrictionTangent(FloatMatrix &answer, CharType type, TimeStep *tStep)
-{
-   // TODO change chartype
-    GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
-    StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
-    mat->give3dStiffnessMatrix_Eng(answer, TangentStiffness, gp, tStep);
-    /*
-    // Stick case
-    FloatArray T1, T2;
-    this->computeTarraysAt(gp, T1, T2, tStep);
-    answer.beDyadicProductOf(T1,T1);
-    FloatMatrix temp;
-    temp.beDyadicProductOf(T2,T2);
-    answer.add(temp);
-    answer.times( this->area * this->epsT );
-    
-    // Slip case*/
-    
-    
-}
-
 void
 Node2NodeContact :: computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer)
 {
@@ -366,7 +299,7 @@ Node2NodeContactL :: computeContactForces(FloatArray &answer, TimeStep *tStep)
     answer.resize( gap.giveSize() * 2 + 1);
     answer.zero();
         
-    if( gap.at(3) < 0.0 ) {
+   if( gap.at(3) < 0.0 ) {
     
         GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
         FloatArray t;
@@ -444,20 +377,14 @@ Node2NodeContactL :: computeContactTangent(FloatMatrix &answer, CharType type, T
 void
 Node2NodeContactL :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep)
 {
-    // should be replaced with a call to constitutive model
-    // gap should be in a local system
-    if ( gap.at(3) < 0.0 ) {
-        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
-        mat->giveEngTraction_3d(t, gp, gap, tStep);
-              
-        Dof *dof = this->giveDofManager(1)->giveDofWithID( this->giveDofIdArray().at(1) );
-        double lambda = dof->giveUnknown(VM_Total, tStep);
-        t.at(3) = lambda;
 
-    } else {
-        t = {0.0, 0.0, 0.0};
-    }
-  
+    StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+    mat->giveEngTraction_3d(t, gp, gap, tStep);
+          
+    Dof *dof = this->giveDofManager(1)->giveDofWithID( this->giveDofIdArray().at(1) );
+    double lambda = dof->giveUnknown(VM_Total, tStep);
+    t.at(3) = lambda;
+
 } 
   
     

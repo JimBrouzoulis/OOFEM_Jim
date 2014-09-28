@@ -266,7 +266,10 @@ set (sm_unsorted
     stressstrainbasevector.C stressvector.C strainvector.C
     mappers/primvarmapper.C
     Contact/cdefnode2node.C
+    Contact/cdefnode2edge.C
     Contact/celnode2node.C
+    Contact/celnode2edge.C
+    Contact/contactpair.C
     )
 
 set (sm_parallel

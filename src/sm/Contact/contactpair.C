@@ -42,7 +42,7 @@
 
 namespace oofem {
 
-ContactPairNode2Edge :: ContactPairNode2Edge(Element *el, int edge, DofManager *slave) : ContactPair()
+ContactPairNode2Edge :: ContactPairNode2Edge(Element *el, int edge, Node *slave) : ContactPair()
 {
     this->masterElement = el;
     this->masterElementEdgeNum = edge;
@@ -62,13 +62,8 @@ ContactPairNode2Edge :: instanciateYourself(DataReader *dr)
     
     this->masterNodes.resize( edgeNodes.giveSize() );
     for ( int j = 1; j<= edgeNodes.giveSize(); j++ ) {        
-        masterNodes[j-1] = this->masterElement->giveDofManager(edgeNodes.at(j));
+        masterNodes[j-1] = this->masterElement->giveNode( edgeNodes.at(j) );
     }        
-
-    
-    // TODO TEMP - compute CPP
-    this->xibar = -1.0;
-    
     
     
   return 1;
@@ -93,8 +88,7 @@ ContactPairNode2Edge :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix 
 void
 ContactPairNode2Edge :: computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep)
 {
-  
-      // Updated covar base vector
+     // Computes the updated covariant base vector (tangent vector) for a 2D edge
      FloatArray dNdxi;
      FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation() );
      interp->edgeEvaldNdxi( dNdxi, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
@@ -112,22 +106,15 @@ void
 ContactPairNode2Edge :: performCPP(TimeStep *tStep)
 {
 
-      
-    // Compute updaeted coordinates x = X + u
-    FloatArray xs, xm1, xm2, us, um1, um2, ae;
-    xs  = *this->slaveNode->giveCoordinates();
-    xm1 = *this->masterNodes[0]->giveCoordinates();
-    xm2 = *this->masterNodes[1]->giveCoordinates();
+    // Compute updated coordinates for all the involved points
+    FloatArray xs, xm1, xm2;
+    this->slaveNode->giveUpdatedCoordinates(xs, tStep);
+    this->masterNodes[0]->giveUpdatedCoordinates(xm1, tStep);
+    this->masterNodes[1]->giveUpdatedCoordinates(xm2, tStep);
     
-    this->masterElement->computeVectorOf( {D_u, D_v, D_w}, VM_Total, tStep, ae, true); // element solution vector
-    us = { ae.at(1), ae.at(2), ae.at(3) };
-    um1 = { ae.at(4), ae.at(5), ae.at(6) };
-    um2 = { ae.at(7), ae.at(8), ae.at(9) };
-    xs.add(us);
-    xm1.add(um1);
-    xm2.add(um2);
     
-    // Perform CCP to find xibar
+    
+    // Perform CCP to find xibar - this is for a straight segment
     // TODO For now assume it to be a straight edge - generalize later
     // xibar = 1/l² * (xs-xm1).(xm2-xm1)  
     FloatArray a = xm2 - xm1;
@@ -135,6 +122,33 @@ ContactPairNode2Edge :: performCPP(TimeStep *tStep)
     double l2 = a.computeSquaredNorm();
     double xibar = dx.dotProduct(a) / l2;
     this->xibar = -1.0 + xibar * 2.0; // transform from [0,1] to [-1,1]
+}
+
+
+
+
+void
+ContactPairNode2Edge :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
+{
+    // Computes the gap vector from the CCP (closest point projection) of 
+    // the slave node onto the master edge.
+    // gap = xs - xm(xibar) = xs - N_i(xibar) * xm_i
+  
+    this->slaveNode->giveUpdatedCoordinates(answer, tStep);
+    
+    FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation()); 
+    FloatArray N, xi;    
+    interp->edgeEvalN(N, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
+    for ( int i = 1; i <= N.giveSize(); i++ ) {
+        this->masterNodes[i-1]->giveUpdatedCoordinates(xi, tStep);
+        answer.add( -N.at(i), xi );
+    }
+    
+//     // Rotate gap to a local system
+//     FloatMatrix orthoBase;
+//     computeCurrentTransformationMatrixAt( lCoords, orthoBase, tStep );
+//     answer.rotatedWith(orthoBase, 't');
+
 }
 
 

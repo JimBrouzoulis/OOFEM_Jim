@@ -10,7 +10,7 @@
  *
  *             OOFEM : Object Oriented Finite Element Code
  *
- *               Copyright (C) 1993 - 2013   Borek Patzak
+ *               Copyright (C) 1993 - 2014   Borek Patzak
  *
  *
  *
@@ -34,8 +34,6 @@
 
 #include "Contact/celnode2edge.h"
 #include "floatmatrix.h"
-#include "masterdof.h"
-
 #include "gaussintegrationrule.h"
 #include "gausspoint.h"
 #include "contact/contactdefinition.h"
@@ -54,7 +52,7 @@ namespace oofem {
 Node2EdgeContact :: Node2EdgeContact(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair) : ContactElement(num, d, cDef)
 {   
     this->numberOfDofMans = 3;
-    this->cPair = static_cast<ContactPairNode2Edge*>(cPair);
+    this->cPair = static_cast< ContactPairNode2Edge * > ( cPair );
 };   
   
 int
@@ -65,62 +63,30 @@ Node2EdgeContact :: instanciateYourself(DataReader *dr)
 
 
 void
-Node2EdgeContact :: computeGap(FloatArray &answer, TimeStep *tStep)
+Node2EdgeContact :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
 {
-    // Computes the gap vector from the CCP (closest point projection) of 
-    // the slave node onto the master edge.
+    this->cPair->computeGap(answer, lCoords, tStep);
     
-  
-    // Compute updaeted coordinates x = X + u
-    FloatArray xs, xm1, xm2, us, um1, um2, ae;
-    xs  = *this->giveDofManager(1)->giveCoordinates();
-    xm1 = *this->giveDofManager(2)->giveCoordinates();
-    xm2 = *this->giveDofManager(3)->giveCoordinates();
-    
-    this->computeVectorOf( {D_u, D_v, D_w}, VM_Total, tStep, ae, true); // element solution vector
-    us = { ae.at(1), ae.at(2), ae.at(3) };
-    um1 = { ae.at(4), ae.at(5), ae.at(6) };
-    um2 = { ae.at(7), ae.at(8), ae.at(9) };
-    xs.add(us);
-    xm1.add(um1);
-    xm2.add(um2);
-    
-    // Perform CCP to find xibar
-    this->cPair->performCPP(tStep);
-    
-    // Evaluate gap in global system as g = N * xhat = N(xibar) * [xs, xm1, xm2]^T ;
-    FloatMatrix N;
-    this->computeNmatrixAt( {this->cPair->giveCPPcoord()}, N );
-    FloatArray xhat = xs;
-    xhat.append(xm1);
-    xhat.append(xm2);
-    
-    answer.beProductOf(N, xhat);
     // Rotate gap to a local system
     FloatMatrix orthoBase;
-    computeCurrentTransformationMatrixAt( {this->cPair->giveCPPcoord()}, orthoBase, tStep );
-
+    computeCurrentTransformationMatrixAt( lCoords, orthoBase, tStep );
     answer.rotatedWith(orthoBase, 't');
 
 }
 
-
+void
+Node2EdgeContact :: performCPP(GaussPoint *gp, TimeStep *tStep) 
+{
+    this->cPair->performCPP(tStep);
+    gp->setNaturalCoordinates( { this->cPair->giveCPPcoord() } );
+}
 
 
 void
 Node2EdgeContact :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep)
-{
-    // TODO should be replaced with a call to constitutive model
-    
-    
-    if ( gap.at(3) < 0.0 ) {
-        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
-        mat->giveEngTraction_3d(t, gp, gap, tStep);
-        
-    } else {
-        t = {0.0, 0.0, 0.0};
-    }
-  
+{   
+    StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+    mat->giveEngTraction_3d(t, gp, gap, tStep);
 }
 
 
@@ -132,57 +98,60 @@ Node2EdgeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 {
     answer.clear();
     FloatArray gap, C;
-      
-    this->computeGap(gap, tStep); // local system
-    if ( gap.at(3) < 0.0 ) {
-        GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
-        FloatArray lCoords = { this->cPair->giveCPPcoord() };
-        FloatArray t;
-        this->computeContactTractionAt(gp, t, gap, tStep); // local system
+    
+    for ( GaussPoint *gp : *this->integrationRule ) {
+        this->performCPP(gp, tStep);
+        FloatArray lCoords = *gp->giveNaturalCoordinates();
         
-        FloatMatrix N, globalSys;
-        this->computeNmatrixAt(lCoords, N);
-        this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-        t.rotatedWith(globalSys, 't');                     // transform to global system
-        answer.beTProductOf(N, t);
-        double dA = this->computeCurrentAreaAround(gp, tStep);
-        answer.times(dA);
+        this->computeGap(gap, lCoords, tStep); 
+        if ( gap.at(3) < 0.0 ) {
+            ;
+            FloatArray t;
+            this->computeContactTractionAt(gp, t, gap, tStep); // local system
+            
+            FloatMatrix N, globalSys;
+            this->computeNmatrixAt(lCoords, N);
+            this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
+            t.rotatedWith(globalSys, 't');                     // transform to global system
+            answer.beTProductOf(N, t);
+            double dA = this->computeCurrentAreaAround(gp, tStep);
+            answer.times(dA);
+        }
     }
-  
 }
 
   
 void
 Node2EdgeContact :: computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep)
 {
-    GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
-    FloatArray gap;
-      
-    this->computeGap(gap, tStep);
-    if( gap.at(3) < 0.0 ) {
-        FloatArray lCoords = { this->cPair->giveCPPcoord() };
-        FloatMatrix N, D;
-        
-        // TODO should be a modified version taking into acount linearization of xibar 
-        this->computeNmatrixAt( lCoords, N); 
-        
-        StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial* > ( this->giveContactMaterial() );
-        mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
-        
-        FloatMatrix globalSys, DN;
-        this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-        D.rotatedWith(globalSys, 't');                   // transform to global system
-        DN.beProductOf(D,N);
-        double dA = this->computeCurrentAreaAround(gp, tStep);
-        answer.clear();
-        answer.plusProductUnsym(N, DN, dA);
-                 
-    } else {
-        int ndofs = this->giveNumberOfDofManagers() * 3;
-        answer.resize(ndofs, ndofs);
-        answer.zero();
-    }
+    int ndofs = this->giveNumberOfDofManagers() * 3;
+    answer.resize(ndofs, ndofs);
+    answer.zero();
     
+    for ( GaussPoint *gp : *this->integrationRule ) {
+  
+        this->performCPP(gp, tStep);
+        FloatArray lCoords = *gp->giveNaturalCoordinates();
+        FloatArray gap;
+        this->computeGap(gap, lCoords, tStep);
+    
+        if( gap.at(3) < 0.0 ) {
+            FloatMatrix N, D;
+            
+            // TODO should be a modified version taking into acount linearization of xibar 
+            this->computeNmatrixAt( lCoords, N); 
+            
+            StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial* > ( this->giveContactMaterial() );
+            mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
+            
+            FloatMatrix globalSys, DN;
+            this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
+            D.rotatedWith(globalSys, 't');                   // transform to global system
+            DN.beProductOf(D,N);
+            double dA = this->computeCurrentAreaAround(gp, tStep);
+            answer.plusProductUnsym(N, DN, dA);            
+        }
+    }
 }
   
   
@@ -228,7 +197,7 @@ Node2EdgeContact :: giveLocationArray(IntArray &answer, const UnknownNumberingSc
         } 
     }    
     
-    //Element :: giveLocationArray(answer, s);
+    //Element :: giveLocationArray(answer, s); will only give eqns for the dof ids I have not D_w for example. TODO 
 }    
 
 
@@ -240,7 +209,6 @@ Node2EdgeContact :: setupIntegrationPoints()
         //TODO sets a null pointer for the element in the iRule 
         this->integrationRule = new GaussIntegrationRule(1, NULL) ;
         this->integrationRule->SetUpPointsOnLine(1, _Unknown);
-        //this->integrationRule->getIntegrationPoint(0)->setLocalCoordinates // add??
     }
     
   

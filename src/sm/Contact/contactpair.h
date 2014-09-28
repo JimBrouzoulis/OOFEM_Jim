@@ -41,6 +41,7 @@
 namespace oofem {
 class Element;
 class DofManager; 
+class Node;
 class TimeStep;
 
 /**
@@ -66,7 +67,7 @@ class OOFEM_EXPORT ContactPairNode2Edge : public ContactPair
 {   
 public:
 
-    ContactPairNode2Edge(Element *el, int edge, DofManager *slave);
+    ContactPairNode2Edge(Element *el, int edge, Node *slave);
     virtual ~ContactPairNode2Edge() {};
 
     virtual int instanciateYourself(DataReader *dr);
@@ -77,16 +78,16 @@ public:
     virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
     virtual void computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep);
     virtual void performCPP(TimeStep *tStep);
-    
+    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
     // gp method
     double giveCPPcoord() { return this->xibar; };
     Element *giveMasterElement() { return this->masterElement; };
 private:
     Element *masterElement;   // the element to which the edge belongs TODO what to do with shared edges? 
     int masterElementEdgeNum; // local edge number on the master element 
-    DofManager *slaveNode;
+    Node *slaveNode;
     
-    std::vector< DofManager* > masterNodes;
+    std::vector< Node* > masterNodes;
     double xibar; // local coordinate from CPP
     
 };

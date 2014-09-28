@@ -82,7 +82,8 @@ public:
     virtual int instanciateYourself(DataReader *dr);
     virtual void setupIntegrationPoints();
     
-    virtual void computeGap(FloatArray &answer, TimeStep *tStep);
+    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
+    virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
     virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
     
     // Necessary methods - pure virtual in base class

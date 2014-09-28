@@ -67,9 +67,10 @@ ContactDefinitionNode2Edge :: initializeFrom(InputRecord *ir)
       
         // create a node2edge contact pair
         Element *el = domain->giveElement( masterElements.at(i) );
-        ContactPair *cPair = new ContactPairNode2Edge(el, masterEdges.at(i), domain->giveDofManager( slaveNodes.at(i) ) );
+        ContactPair *cPair = new ContactPairNode2Edge(el, masterEdges.at(i), domain->giveNode( slaveNodes.at(i) ) );
         cPair->instanciateYourself(NULL); //TODO fix!
         
+        // ask cPair for this instead? 
         IntArray edgeNodes, globalNodeArray;
         FEInterpolation2d *interp = static_cast< FEInterpolation2d* > ( el->giveInterpolation() );
         IntArray elNodes = el->giveDofManArray(); 
@@ -82,10 +83,8 @@ ContactDefinitionNode2Edge :: initializeFrom(InputRecord *ir)
             globalNodeArray.at(j+1) = el->giveDofManagerNumber(edgeNodes.at(j));
         }        
         
-        
         ContactElement *cEl = new Node2EdgeContact(i, domain, this, cPair);
-        
-        
+             
         // initialize contact element from dynamic input record - this is to be able to use regular element functions like giveLocArray
         DynamicInputRecord *dir;
         dir = CreateElementIR(i, _IFT_ContactDefinitionNode2Edge_Name, globalNodeArray );

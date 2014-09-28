@@ -288,6 +288,15 @@ FEI2dQuadLin :: edgeEvaldNds(FloatArray &answer, int iedge,
     answer.at(2) =  1.0 / l;
 }
 
+
+void
+FEI2dQuadLin :: edgeEvaldNdxi(FloatArray &answer, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo)
+{
+    answer.resize(2);
+    answer.at(1) = -0.5;
+    answer.at(2) =  0.5;
+}
+
 void
 FEI2dQuadLin :: edgeLocal2global(FloatArray &answer, int iedge,
                                  const FloatArray &lcoords, const FEICellGeometry &cellgeo)

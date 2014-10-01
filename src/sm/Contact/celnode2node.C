@@ -102,11 +102,24 @@ Node2NodeContact :: computeCmatrixAt(GaussPoint *gp, FloatArray &answer, TimeSte
     // TODO change name to vector/array
     // The normal is not updated for node2node which is for small deformations only
     // C = {n -n}
+  // write as  N * normal = (6x3)(3x1) = (6x1)
     FloatArray normal = this->giveNormal();
     answer = {  normal.at(1),  normal.at(2),  normal.at(3),
                -normal.at(1), -normal.at(2), -normal.at(3) };
+    FloatMatrix N;
+    this->computeNmatrixAt( *gp->giveNaturalCoordinates(), N);
+    answer.beTProductOf(N, normal);
     
 }
+
+
+void
+Node2NodeContact :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
+{
+    // N = [I, -I]
+    answer.beNMatrixOf( {1, -1}, 3 );
+}
+
 
 void
 Node2NodeContact :: computeTarraysAt(GaussPoint *gp, FloatArray &T1, FloatArray &T2, TimeStep *TimeStep)
@@ -157,7 +170,7 @@ Node2NodeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
         this->computeContactTractionAt(gp, t, gap, tStep); // local system
         
         FloatMatrix N;
-        this->computeNmatrixAt(gp, N);
+        this->computeNmatrixAt( *gp->giveNaturalCoordinates(), N);
         
         FloatMatrix globalSys;
         globalSys.beLocalCoordSys( this->giveNormal() ); // should probably be stored so it is constant
@@ -179,7 +192,7 @@ Node2NodeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
     if( gap.at(3) < 0.0 ) {
         
         FloatMatrix N, D;
-        this->computeNmatrixAt(gp, N);
+        this->computeNmatrixAt( *gp->giveNaturalCoordinates(), N);
         
         StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial* > ( this->giveContactMaterial() );
         mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
@@ -308,7 +321,7 @@ Node2NodeContactL :: computeContactForces(FloatArray &answer, TimeStep *tStep)
         // new implementation
         FloatArray temp;
         FloatMatrix N;
-        this->computeNmatrixAt(gp, N);
+        this->computeNmatrixAt( *gp->giveNaturalCoordinates(), N);
         
         FloatMatrix globalSys;
         globalSys.beLocalCoordSys( this->giveNormal() ); // should probably be stored so it is constant
@@ -338,7 +351,7 @@ Node2NodeContactL :: computeContactTangent(FloatMatrix &answer, CharType type, T
       GaussPoint *gp = this->integrationRule->getIntegrationPoint(0);
     
       FloatMatrix N, D;
-      this->computeNmatrixAt(gp, N);
+      this->computeNmatrixAt( *gp->giveNaturalCoordinates(), N);
       
       StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
       mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 

@@ -76,8 +76,12 @@ public:
     
     //element methods
     virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
+    virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     virtual void computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep);
     virtual void performCPP(TimeStep *tStep);
+    virtual void computeCPP(FloatArray &answer, const FloatArray &x);
+    virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
+    
     virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
     // gp method
     double giveCPPcoord() { return this->xibar; };

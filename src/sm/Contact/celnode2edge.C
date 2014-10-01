@@ -97,7 +97,7 @@ void
 Node2EdgeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 {
     answer.clear();
-    FloatArray gap, C;
+    FloatArray gap;
     
     for ( GaussPoint *gp : *this->integrationRule ) {
         this->performCPP(gp, tStep);
@@ -113,9 +113,8 @@ Node2EdgeContact :: computeContactForces(FloatArray &answer, TimeStep *tStep)
             this->computeNmatrixAt(lCoords, N);
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
             t.rotatedWith(globalSys, 't');                     // transform to global system
-            answer.beTProductOf(N, t);
             double dA = this->computeCurrentAreaAround(gp, tStep);
-            answer.times(dA);
+            answer.plusProduct(N, t, dA);
         }
     }
 }
@@ -136,9 +135,11 @@ Node2EdgeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
         this->computeGap(gap, lCoords, tStep);
     
         if( gap.at(3) < 0.0 ) {
+            // D( delta(g) * t ) = delta(g) * D(t) + t * Delta( delta(g) ) = 1 + 2
+          
+            // Part 1: delta(g) * D(t) = delta(g) * dt/dg * D(g) 
             FloatMatrix N, D;
             
-            // TODO should be a modified version taking into acount linearization of xibar 
             this->computeNmatrixAt( lCoords, N); 
             
             StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial* > ( this->giveContactMaterial() );
@@ -149,7 +150,18 @@ Node2EdgeContact :: computeContactTangent(FloatMatrix &answer, CharType type, Ti
             D.rotatedWith(globalSys, 't');                   // transform to global system
             DN.beProductOf(D,N);
             double dA = this->computeCurrentAreaAround(gp, tStep);
-            answer.plusProductUnsym(N, DN, dA);            
+            answer.plusProductUnsym(N, DN, dA);  
+            
+            
+            // Addition of non-symmetric and highly nonlinear term
+            // part 2: t * dN/dxi * dxi/dx * Delta(x)
+            // TODO doesn't give any effect on the convergence - wrong or unimportant!?
+            FloatArray t;
+            StructuralInterfaceMaterialStatus *matStat = static_cast < StructuralInterfaceMaterialStatus* > ( mat->giveStatus(gp) );
+            t = matStat->giveTempTraction();
+            FloatMatrix B;
+            computeBmatrixAt(lCoords, t, B, tStep); //TODO rename and recheck
+            //answer.add(dA, B);
         }
     }
 }
@@ -159,6 +171,14 @@ void
 Node2EdgeContact :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
 {
     this->cPair->computeNmatrixAt(lCoords, answer);
+}
+
+void
+Node2EdgeContact :: computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep)
+{
+  
+    this->cPair->computeBmatrixAt(lCoords, traction, answer, tStep);
+  
 }
 
 
@@ -232,38 +252,8 @@ Node2EdgeContact :: computeCurrentAreaAround(IntegrationPoint *ip, TimeStep *tSt
 
 void
 Node2EdgeContact :: computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep)
-{
-  // updated covar base vector
-//     FloatMatrix dNdxi;
-//     FEInterpolation *interp = this->masterElement->giveInterpolation();
-//     interp->evaldNdxi( dNdxi, * ip->giveNaturalCoordinates(), FEIElementGeometryWrapper(this->masterElement) );
-//     g.resize(3);
-//     g.zero();
-//     int numNodes = this->giveNumberOfNodes();
-//     for ( int i = 1; i <= dNdxi.giveNumberOfRows(); i++ ) {
-//         double X1_i = 0.5 * ( this->giveNode(i)->giveCoordinate(1) + this->giveNode(i + numNodes / 2)->giveCoordinate(1) ); // (mean) point on the fictious mid surface
-//         double X2_i = 0.5 * ( this->giveNode(i)->giveCoordinate(2) + this->giveNode(i + numNodes / 2)->giveCoordinate(2) );
-//         G.at(1) += dNdxi.at(i, 1) * X1_i;
-//         G.at(2) += dNdxi.at(i, 1) * X2_i;
-//     }
-    // Compute updaeted coordinates x = X + u
-  
-    // specialized for linear edge
-//     FloatArray xm1, xm2, um1, um2, ae;
-//     
-//     xm1 = *this->giveDofManager(2)->giveCoordinates();
-//     xm2 = *this->giveDofManager(3)->giveCoordinates();
-//     
-//     this->computeVectorOf( {D_u, D_v, D_w}, VM_Total, tStep, ae, true); // element solution vector
-//     um1 = { ae.at(4), ae.at(5), ae.at(6) };
-//     um2 = { ae.at(7), ae.at(8), ae.at(9) };
-//     
-//     xm1.add(um1);
-//     xm2.add(um2);
-//     g = xm2 - xm1;
-    
-  this->cPair->computeCovarBaseVectorAt(lCoords, g, tStep);
-  
+{   
+  this->cPair->computeCovarBaseVectorAt(lCoords, g, tStep); 
 }
 
 

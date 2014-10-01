@@ -64,15 +64,6 @@ protected:
     ContactDefinition *cDef;
     ContactPairNode2Edge *cPair;
     
-private:
-    
-    // should be set by input:
-    double area; // The area associated with the node (default = 1)- in order to represent some physical dimension.  
-    
-    //TODO store in a contact pair
-    Element *masterElement;   // the element to which the edge belongs TODO what to do with shared edges? 
-    int masterElementEdgeNum; // local edge number on the master element 
-    
 public:
     
     /// Constructor.
@@ -96,6 +87,8 @@ public:
     virtual const char *giveInputRecordName() const { return _IFT_Node2EdgeContactP_Name; }
     
     virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
+    virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
+    
     virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep);
     virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
     virtual void computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);

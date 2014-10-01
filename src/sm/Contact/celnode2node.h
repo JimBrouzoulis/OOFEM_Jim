@@ -80,8 +80,13 @@ public:
     
     virtual void computeGap(FloatArray &answer, TimeStep *tStep);
     virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
+    virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
+    
+    //remove
     virtual void computeCmatrixAt(GaussPoint *gp, FloatArray &answer, TimeStep *TimeStep);
     virtual void computeTarraysAt(GaussPoint *gp, FloatArray &T1, FloatArray &T2, TimeStep *TimeStep);
+    
+    
     FloatArray &giveNormal() { return this->normal; };
     
     

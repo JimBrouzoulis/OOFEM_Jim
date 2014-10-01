@@ -58,7 +58,7 @@ RegularizedCoulomb :: giveEngTraction_3d( FloatArray &answer, GaussPoint *gp, co
     this->initTempStatus(gp);
     
     computeEngTraction_3d( answer, gp, gap, tStep);
-    
+
     // Update gp    
     status->letTempJumpBe( gap );
     status->letTempTractionBe( answer );
@@ -72,7 +72,7 @@ RegularizedCoulomb :: computeEngTraction_3d( FloatArray &answer, GaussPoint *gp,
     // Returns the (engineering) traction vector in 3d based on the spatial gap.
 
     RegularizedCoulombStatus *status = static_cast< RegularizedCoulombStatus * >( this->giveStatus( gp ) );
-    this->initTempStatus(gp);
+    //this->initTempStatus(gp);
     
     // Traction vector
     answer.resize( 3 );

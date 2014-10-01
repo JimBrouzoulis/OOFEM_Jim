@@ -46,6 +46,10 @@
 #include "activebc.h"
 #include "classfactory.h"
 
+#include "contact/contactmanager.h"
+#include "contact/contactdefinition.h"
+#include "contact/contactelement.h"
+
 #ifdef TIME_REPORT
  #include "timer.h"
 #endif
@@ -351,6 +355,39 @@ SkylineUnsym :: buildInternalStructure(EngngModel *eModel, int di, const Unknown
         }
     }
 
+    
+    
+    if ( domain->hasContactManager() ) {
+        ContactManager *cMan = domain->giveContactManager();
+            
+        for ( int i =1; i <= cMan->giveNumberOfContactDefinitions(); i++ ) {
+            ContactDefinition *cDef = cMan->giveContactDefinition(i);
+            for ( int k = 1; k <= cDef->giveNumbertOfContactElements(); k++ ) {
+                ContactElement *cEl = cDef->giveContactElement(k);
+                cEl->giveLocationArray(loc, s);
+            
+                //    Find 'first', the smallest positive number in LocArray
+                first = neq;
+                for ( int i = 1; i <= loc.giveSize(); i++ ) {
+                    int ii = loc.at(i);
+                    if ( ii && ii < first ) {
+                        first = ii;
+                    }
+                }
+
+                //    Make sure that the FirstIndex is not larger than 'first'
+                for ( int i = 1; i <= loc.giveSize(); i++ ) {
+                    int ii = loc.at(i);
+                    if ( ii && ( first < firstIndex.at(ii) ) ) {
+                        firstIndex.at(ii) = first;
+                    }
+                }
+                
+            }
+        }
+    }    
+    
+    
 
     // Enlarge the rowcolumns
     for ( int i = 1; i <= neq; i++ ) {

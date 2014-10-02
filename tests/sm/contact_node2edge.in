@@ -1,0 +1,105 @@
+contactdev.out
+Development of contact implementation - tests node 2 edge using a penalty approach
+#  
+#    /*  4 - 3  <->  8 - 7
+#     *  |   |       |   |
+#     *  1 - 2  <->  5 - 6
+#     */
+StaticStructural nsteps 5 rtolf 1.0e-6 rtold -1.0 nmodules 2 maxiter 5 manrmsteps 1 smtype 1 lstype 0
+vtkxml 1 tstep_all dofman_all element_all primvars 1 1  vars 1 1
+errorcheck 2
+domain 2dPlaneStress
+OutputManager tstep_all dofman_all element_all
+ndofman 8 nelem 2 ncrosssect  1 nmat 3 nbc 3 nic 0 nltf 3 ncontactman 1 nset 2
+node 1 coords 3  0.0   0.0 0.0   
+node 2 coords 3  1.0   0.0 0.0     
+node 3 coords 3  1.0   2.0 0.0     
+node 4 coords 3  0.0   2.0 0.0
+#
+node 5 coords 3  1.000   0.3 0.0     
+node 6 coords 3  2.000   0.3 0.0     
+node 7 coords 3  2.000   1.2 0.0     
+node 8 coords 3  1.00   1.2 0.0    
+#
+PlaneStress2d 1 nodes 4 1 2 3 4  crossSect 1 mat 1 nlgeo 0
+PlaneStress2d 2 nodes 4 5 6 7 8  crossSect 1 mat 2 nlgeo 0
+SimpleCS 1 thick 0.15
+#
+IsoLE 1 d 0. E 1.0e2 n 0.25 tAlpha 0.000012
+IsoLE 2 d 0. E 1.0e3 n 0.25 tAlpha 0.000012
+DefaultContactMat 3  epsn 1.0e6
+#
+BoundaryCondition 1 loadTimeFunction 2 values 2  0.000.0 0.0 dofs 2  1 2 set 1    
+BoundaryCondition 2 loadTimeFunction 2 values 1  -0.003 dofs 1  1 set 2
+BoundaryCondition 3 loadTimeFunction 3 values 1   0.01 dofs 1  2 set 2
+ConstantFunction 1 f(t) 1.0
+PiecewiseLinFunction 2 nPoints 2  t 2  0. 4 f(t) 2  1.0 4.0
+PiecewiseLinFunction 3 nPoints 2  t 2  0. 4 f(t) 2  0.0 1.0
+Set 1 nodes 2 1 4
+Set 2 nodes 2 6 7
+ContactManager 1  numcontactdef 1
+#
+# add contact definition
+CDef_Node2EdgeP  1 masterelements 2 1 1 masteredges 2 2 2   slavenodes 2  5 8 material 3
+#
+#
+#%BEGIN_CHECK% tolerance 1.e-3
+#
+#NODE tStep 5 number 2 dof 1 unknown d value -0.0124423
+#NODE tStep 5 number 2 dof 2 unknown d value -0.00507239
+#NODE tStep 5 number 3 dof 1 unknown d value -0.00593767
+#NODE tStep 5 number 3 dof 2 unknown d value 0.00182009
+#NODE tStep 5 number 5 dof 1 unknown d value -0.0114173
+#NODE tStep 5 number 5 dof 2 unknown d value 0.0112771
+#NODE tStep 5 number 8 dof 1 unknown d value -0.00849828
+#NODE tStep 5 number 8 dof 2 unknown d value 0.0119663
+#
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 1 value -0.707495
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 2 value 0.0949226
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 6 value -8.67362e-18
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 1 value -1.10807
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 2 value -0.00522223
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 6 value -8.67362e-18
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 1 value -0.760553
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 2 value -0.117311
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 6 value -8.67362e-18
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 1 value -1.16113
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 2 value -0.217456
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 6 value -8.67362e-18
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 1 value -3.03403
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 2 value -0.596669
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 6 value -3.46945e-16
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 1 value -1.23638
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 2 value -0.147257
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 6 value -3.46945e-16
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 1 value -2.91612
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 2 value -0.125039
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 6 value -3.46945e-16
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 1 value -1.11848
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 2 value 0.324373
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 3 value 0
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 4 value 0
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 5 value 0
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 6 value -3.46945e-16
+#%END_CHECK%

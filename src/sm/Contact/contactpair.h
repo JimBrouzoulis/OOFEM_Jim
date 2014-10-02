@@ -37,13 +37,14 @@
 
 #include "datareader.h"
 #include "floatarray.h"
+#include "floatmatrix.h"
 
 namespace oofem {
 class Element;
 class DofManager; 
 class Node;
 class TimeStep;
-
+class GaussPoint;
 /**
  * Keeps track of the pairing node2node etc and should compute CPP, transformations etc
  *
@@ -59,8 +60,34 @@ public:
     virtual int instanciateYourself(DataReader *dr){ return IRRT_OK; };
     virtual const char *giveClassName() const { return "ContactPair"; }
     
+    virtual Node *giveMasterNode(const int num) { return this->masterNodes[num-1]; };
+    virtual Node *giveSlaveNode(const int num) { return this->slaveNodes[num-1]; };
+    int giveNumberOfMasterNodes() { return this->masterNodes.size(); };
+    int giveNumberOfSlaveNodes() { return this->slaveNodes.size(); };
     
+    FloatArray &giveCPPcoords(const int num) { return this->CPPpoints[num-1]; };
+    virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep){};
+    virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
+    virtual void computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
+    virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep);
+    virtual void performCPP(GaussPoint *gp, TimeStep *tStep){ };
+    
+    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep){};
+    
+    
+    virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
+    virtual void giveSlaveNarray(const FloatArray &lCoords, FloatArray &answer) { answer.clear(); };
+    virtual void giveMasterNarray(const FloatArray &lCoords, FloatArray &answer) { answer.clear(); };;
+    
+protected:
+    std :: vector< Node* > masterNodes;
+    std :: vector< Node* > slaveNodes;
+    
+    std :: vector< FloatArray > CPPpoints; // list of all the CPP the cPair have
 };
+
+
+
 
 
 class OOFEM_EXPORT ContactPairNode2Edge : public ContactPair
@@ -75,10 +102,15 @@ public:
     
     
     //element methods
-    virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
+    virtual void giveSlaveNarray(const FloatArray &lCoords, FloatArray &answer);
+    virtual void giveMasterNarray(const FloatArray &lCoords, FloatArray &answer);
+    
+    
     virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
-    virtual void computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep);
-    virtual void performCPP(TimeStep *tStep);
+    virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
+    
+    virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
+    
     virtual void computeCPP(FloatArray &answer, const FloatArray &x);
     virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
     
@@ -91,7 +123,7 @@ private:
     int masterElementEdgeNum; // local edge number on the master element 
     Node *slaveNode;
     
-    std::vector< Node* > masterNodes;
+    //std::vector< Node* > masterNodes;
     double xibar; // local coordinate from CPP
     
 };

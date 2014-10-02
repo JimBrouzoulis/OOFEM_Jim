@@ -36,6 +36,7 @@
 #define celnode2node_h
 
 #include "contact/contactelement.h"
+#include "Contact/structuralcontactelement.h"
 
 ///@name Input fields for _IFT_Node2EdgeContact
 //@{
@@ -45,20 +46,13 @@
 
 namespace oofem {
 class Domain;
-class ContactManager;
 class ContactDefinition;
-class SparseMtrx;
 class TimeStep;
-class DofManager;
-class GaussPoint;
-class UnknownNumberingScheme;
 class FloatMatrix;
-class IntegrationRule;
-class ContactElement;
 class ContactPairNode2Edge;
 class ContactPair;
 
-class OOFEM_EXPORT Node2EdgeContact : public ContactElement
+class OOFEM_EXPORT Node2EdgeContact : public StructuralContactElement
 {
 protected:
     ContactDefinition *cDef;
@@ -70,29 +64,15 @@ public:
     Node2EdgeContact(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair);
     /// Destructor.
     virtual ~Node2EdgeContact(){};
-    virtual int instanciateYourself(DataReader *dr);
+    
     virtual void setupIntegrationPoints();
     
-    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
-    virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
-    virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
-    
-    // Necessary methods - pure virtual in base class
-    virtual void computeContactForces(FloatArray &answer, TimeStep *tStep);    
-    
-    virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
+    virtual ContactPair *giveContactPair();
 
-    
-    virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
     virtual const char *giveInputRecordName() const { return _IFT_Node2EdgeContactP_Name; }
     
-    virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
     virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     
-    virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep);
-    virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
-    virtual void computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
-    virtual void computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep );
 };
 
 

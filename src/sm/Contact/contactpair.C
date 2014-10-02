@@ -36,17 +36,74 @@
 #include "element.h"
 #include "dofmanager.h"
 #include "timestep.h"
+#include "gausspoint.h"
 
 // node2edge
 #include "feinterpol2d.h"
+#include "CrossSections/structuralcrosssection.h"
 
 namespace oofem {
 
+  
+void
+ContactPair :: computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep)  
+{
+    FloatArray g1, g2;
+    this->computeCovarTangentVectorsAt( lCoords, g1, g2, tStep);
+    normal.beVectorProductOf(g1, g2);
+    normal.normalize(); 
+}
+  
+  
+double 
+ContactPair::computeCurrentAreaAround(GaussPoint* gp, TimeStep* tStep)
+{
+    double weight  = gp->giveWeight();
+    FloatArray g1, g2, g3;
+    this->computeCovarTangentVectorsAt( *gp->giveNaturalCoordinates(), g1, g2, tStep);
+    g3.beVectorProductOf(g1, g2);
+    return g3.computeNorm() * weight;
+}
+
+  
+void 
+ContactPair :: computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep) 
+{
+    // Transformation matrix to the local coordinate system
+    FloatArray normal;
+    this->computeCurrentNormalAt(lCoords, normal, tStep);
+    answer.beLocalCoordSys( normal );
+        
+}
+
+void
+ContactPair :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
+{
+    //NOTE General method to be reused
+    // N = [N_slave, -N_master]
+
+    
+    FloatArray Nslave, Nmaster;
+    giveSlaveNarray(lCoords, Nslave);
+    giveMasterNarray(lCoords, Nmaster);
+    Nmaster.negated();
+    Nslave.append(Nmaster);
+
+    answer.beNMatrixOf(Nslave, 3);
+
+}
+  
+  
+//--------------------------------  
+  
+  
+  
 ContactPairNode2Edge :: ContactPairNode2Edge(Element *el, int edge, Node *slave) : ContactPair()
 {
     this->masterElement = el;
     this->masterElementEdgeNum = edge;
-    this->slaveNode = slave;
+    this->slaveNodes.resize(1);
+    this->slaveNodes[0] = slave;
     this->xibar = -2.0; // outside element
 }
     
@@ -70,50 +127,53 @@ ContactPairNode2Edge :: instanciateYourself(DataReader *dr)
 }    
     
     
+
+
 void
-ContactPairNode2Edge :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
+ContactPairNode2Edge :: giveSlaveNarray(const FloatArray &lCoords, FloatArray &answer)
 {
-    //NOTE General method to be reused
-    // N = [I, -N_edge]
+    answer = {1};
+}
+
+
+void
+ContactPairNode2Edge :: giveMasterNarray(const FloatArray &lCoords, FloatArray &answer)
+{
     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation() );
-    FloatArray Nedge, N = {1};
-    FloatMatrix NedgeMat;
-    interp->edgeEvalN(Nedge, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
-    Nedge.negated();
-    N.append(Nedge);
-    answer.beNMatrixOf(N, 3);
-
-}    
-
-
-void
-ContactPairNode2Edge :: computeCovarBaseVectorAt(const FloatArray &lCoords, FloatArray &g, TimeStep *tStep)
-{
-     //NOTE General method for 2D
-     // Computes the updated covariant base vector (tangent vector) for a 2D edge
-     FloatArray dNdxi;
-     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation() );
-     interp->edgeEvaldNdxi( dNdxi, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
-     g.resize(3);
-     g.zero();
-     FloatArray x;
-     for ( int i = 1; i <= dNdxi.giveSize(); i++ ) {
-         x = *this->masterNodes[i-1]->giveCoordinates();
-         g.add( dNdxi.at(i), x);
-     }
+    interp->edgeEvalN(answer, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper( this->masterElement ) );
 }
 
  
 void
-ContactPairNode2Edge :: performCPP(TimeStep *tStep)
+ContactPairNode2Edge :: computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep)
+{
+  
+    
+     // Computes the updated covariant tangent (base) vectors
+     FloatArray dNdxi;
+     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation() );
+     interp->edgeEvaldNdxi( dNdxi, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
+     g1.resize(3); g1.zero();
+     FloatArray x;
+     for ( int i = 1; i <= dNdxi.giveSize(); i++ ) {
+         x = *this->masterNodes[i-1]->giveCoordinates();
+         g1.add( dNdxi.at(i), x);
+     }
+     StructuralCrossSection *cs = static_cast< StructuralCrossSection* > (  this->masterElement->giveCrossSection() );
+     g2 = {0.0, 0.0, cs->give(CS_Thickness, NULL) }; // The second one point is in the out of plane dir. with t as length
+}
+
+
+void
+ContactPairNode2Edge :: performCPP(GaussPoint *gp, TimeStep *tStep)
 {
     // should work on a local slave coord-> compute global slave coord 
     // (for when we only have slave gp's instead of actual slave nodes)
     // Compute updated coordinates for all the involved points
     FloatArray xs, xm1, xm2;
-    this->slaveNode->giveUpdatedCoordinates(xs, tStep);
-    this->masterNodes[0]->giveUpdatedCoordinates(xm1, tStep);
-    this->masterNodes[1]->giveUpdatedCoordinates(xm2, tStep);
+    this->giveSlaveNode(1)->giveUpdatedCoordinates(xs, tStep);
+    this->giveMasterNode(1)->giveUpdatedCoordinates(xm1, tStep);
+    this->giveMasterNode(2)->giveUpdatedCoordinates(xm2, tStep);
     
     // could x be created in a better way?
     FloatArray x, xibar;
@@ -122,9 +182,10 @@ ContactPairNode2Edge :: performCPP(TimeStep *tStep)
     x.append(xm2);
     this->computeCPP( xibar, x );
     this->xibar = xibar.at(1); // why not store the array?
+    
+    gp->setNaturalCoordinates( xibar );
   
 }
-
 
 void
 ContactPairNode2Edge :: computeCPP(FloatArray &answer, const FloatArray &x)
@@ -151,9 +212,9 @@ ContactPairNode2Edge :: computeLinearizationOfCPP(const FloatArray &lCoords, Flo
   
     // Compute updated coordinates for all the involved points
     FloatArray xs, xm1, xm2;
-    this->slaveNode->giveUpdatedCoordinates(xs, tStep);
-    this->masterNodes[0]->giveUpdatedCoordinates(xm1, tStep);
-    this->masterNodes[1]->giveUpdatedCoordinates(xm2, tStep);
+    this->giveSlaveNode(1)->giveUpdatedCoordinates(xs, tStep);
+    this->giveMasterNode(1)->giveUpdatedCoordinates(xm1, tStep);
+    this->giveMasterNode(2)->giveUpdatedCoordinates(xm2, tStep);
     
     // Numerical derivative
     FloatArray x0, x, xi0, xi, dxi;
@@ -207,7 +268,7 @@ ContactPairNode2Edge :: computeGap(FloatArray &answer, FloatArray &lCoords, Time
     // the slave node onto the master edge.
     // gap = xs - xm(xibar) = xs - N_i(xibar) * xm_i
   
-    this->slaveNode->giveUpdatedCoordinates(answer, tStep);
+    this->giveSlaveNode(1)->giveUpdatedCoordinates(answer, tStep);
     
     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation()); 
     FloatArray N, xi;    
@@ -216,12 +277,6 @@ ContactPairNode2Edge :: computeGap(FloatArray &answer, FloatArray &lCoords, Time
         this->masterNodes[i-1]->giveUpdatedCoordinates(xi, tStep);
         answer.add( -N.at(i), xi );
     }
-    
-//     // Rotate gap to a local system
-//     FloatMatrix orthoBase;
-//     computeCurrentTransformationMatrixAt( lCoords, orthoBase, tStep );
-//     answer.rotatedWith(orthoBase, 't');
-
 }
 
 

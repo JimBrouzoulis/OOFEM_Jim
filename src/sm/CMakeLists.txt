@@ -270,6 +270,7 @@ set (sm_unsorted
     Contact/celnode2node.C
     Contact/celnode2edge.C
     Contact/contactpair.C
+    Contact/structuralcontactelement.C
     )
 
 set (sm_parallel

@@ -10,7 +10,7 @@
  *
  *             OOFEM : Object Oriented Finite Element Code
  *
- *               Copyright (C) 1993 - 2013   Borek Patzak
+ *               Copyright (C) 1993 - 2014   Borek Patzak
  *
  *
  *
@@ -35,29 +35,22 @@
 #ifndef celnode2node_h
 #define celnode2node_h
 
-#include "contact/contactelement.h"
+#include "Contact/structuralcontactelement.h"
 
 ///@name Input fields for _IFT_ContactElement
 //@{
 #define _IFT_Node2NodeContactP_Name "node2nodecontactp"
 
 #define _IFT_Node2NodeContactL_Name "node2nodecontactl"
+#define _IFT_Node2NodeContactL2_Name "node2nodecontactl2"
 //@}
 
 namespace oofem {
 class Domain;
-class ContactManager;
 class ContactDefinition;
-class SparseMtrx;
-class TimeStep;
-class DofManager;
-class GaussPoint;
-class UnknownNumberingScheme;
-class FloatMatrix;
-class IntegrationRule;
-class ContactElement;
+class ContactPair;
 
-class OOFEM_EXPORT Node2NodeContact : public ContactElement
+class OOFEM_EXPORT Node2NodeContact : public StructuralContactElement
 {
 protected:
     ContactDefinition *cDef;
@@ -72,69 +65,35 @@ private:
 public:
     
     /// Constructor.
-    Node2NodeContact(int num, Domain *d, ContactDefinition *cDef);
+    Node2NodeContact(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair);
     /// Destructor.
     virtual ~Node2NodeContact(){};
-    virtual int instanciateYourself(DataReader *dr);
     virtual void setupIntegrationPoints();
-    
-    virtual void computeGap(FloatArray &answer, TimeStep *tStep);
-    virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
-    virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
-    
-    //remove
-    virtual void computeCmatrixAt(GaussPoint *gp, FloatArray &answer, TimeStep *TimeStep);
-    virtual void computeTarraysAt(GaussPoint *gp, FloatArray &T1, FloatArray &T2, TimeStep *TimeStep);
-    
-    
-    FloatArray &giveNormal() { return this->normal; };
-    
-    
-    // Necessary methods - pure virtual in base class
-    virtual void computeContactForces(FloatArray &answer, TimeStep *tStep);    
-    
-    virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
-
-    virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
     virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactP_Name; }
-    
-    
-    virtual void computeNmatrixAt(GaussPoint *gp, FloatMatrix &answer);
     
 };
 
 
 
-
-class OOFEM_EXPORT Node2NodeContactL : public Node2NodeContact
+class OOFEM_EXPORT Node2NodeContactL2 : public StructuralContactElementLagrange
 {
-protected:
-    ContactDefinition *cDef;
-
 private:
     int lagrangeId; // dof Id associated with the Lagrange multiplier
-    
-    // should be set by input:
-    double area; // The area associated with the node (default = 1)- in order to represent some physical dimension.  
-  
-    
+
 public:
 
     /// Constructor.
-    Node2NodeContactL(int num, Domain *d, ContactDefinition *cDef);
+    Node2NodeContactL2(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair);
     /// Destructor.
-    virtual ~Node2NodeContactL(){};
-    virtual void giveDofManagersToAppendTo(IntArray &answer); 
-    virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
+    virtual ~Node2NodeContactL2(){};
+    virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactL2_Name; }
     
-    // Necessary methods - pure virtual in base class
-    virtual void computeContactForces(FloatArray &answer, TimeStep *tStep);    
+    virtual void setupIntegrationPoints();
     
-    virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
-    
-    virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
-    virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactL_Name; }
 };
+
+
+
 
 
 

@@ -34,6 +34,8 @@
 
 #include "Contact/cdefnode2node.h"
 #include "Contact/celnode2node.h"
+#include "Contact/contactpair.h"
+
 #include "domain.h"
 #include "classfactory.h"
 #include "dynamicinputrecord.h"
@@ -63,7 +65,13 @@ ContactDefinitionNode2Node :: initializeFrom(InputRecord *ir)
     Domain *domain = this->giveContactManager()->giveDomain();
     for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
       
-        ContactElement *master = new Node2NodeContact(i, domain, this);
+        // create a node2node contact pair
+        //Element *el = domain->giveElement( masterElements.at(i) );
+        ContactPair *cPair = new ContactPairNode2Node( domain->giveNode( masterNodes.at(i) ), domain->giveNode( slaveNodes.at(i) ) );
+        //cPair->instanciateYourself(NULL); //TODO fix!
+        
+      
+        ContactElement *master = new Node2NodeContact(i, domain, this, cPair);
         
         // initialize contact element from dynamic input record
         DynamicInputRecord *dir;
@@ -100,11 +108,15 @@ ContactDefinitionNode2NodeL :: initializeFrom(InputRecord *ir)
     
     Domain *domain = this->giveContactManager()->giveDomain();
     for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
-        ContactElement *master = new Node2NodeContactL(i, domain, this);
+        ContactPair *cPair = new ContactPairNode2Node( domain->giveNode( masterNodes.at(i) ), domain->giveNode( slaveNodes.at(i) ) );
 
+        //ContactElement *master = new Node2NodeContactL(i, domain, this, cPair);
+        ContactElement *master = new Node2NodeContactL2(i, domain, this, cPair);
+
+        
         // initialize contact element from dynamic input record
         DynamicInputRecord *dir;
-        dir = CreateElementIR(i, _IFT_Node2NodeContactL_Name, {slaveNodes.at(i), masterNodes.at(i) } );
+        dir = CreateElementIR(i, _IFT_Node2NodeContactL2_Name, {slaveNodes.at(i), masterNodes.at(i) } );
         master->initializeFrom(dir);
         this->addContactElement(master);
     }

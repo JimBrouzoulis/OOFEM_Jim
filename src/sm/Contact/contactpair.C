@@ -79,10 +79,8 @@ ContactPair :: computeCurrentTransformationMatrixAt(const FloatArray &lCoords, F
 void
 ContactPair :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
 {
-    //NOTE General method to be reused
     // N = [N_slave, -N_master]
-
-    
+   
     FloatArray Nslave, Nmaster;
     giveSlaveNarray(lCoords, Nslave);
     giveMasterNarray(lCoords, Nmaster);
@@ -92,6 +90,71 @@ ContactPair :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
     answer.beNMatrixOf(Nslave, 3);
 
 }
+  
+  
+
+void
+ContactPair :: giveCurrentCoordsArray(FloatArray &answer, TimeStep *tStep)
+{
+    // computes the array with updated node coords for slave and master nodes
+    int numDofs = ( this->giveNumberOfMasterNodes() + this->giveNumberOfSlaveNodes() ) * 3;
+    answer.resize(numDofs);
+    answer.zero();
+
+    FloatArray x;
+    int pos = 0;
+    for ( int i = 1; i <= this->giveNumberOfSlaveNodes(); i++ ) {
+      
+        this->giveSlaveNode(i)->giveUpdatedCoordinates(x, tStep);
+        for ( int j = 1; j <= x.giveSize(); j++ ) {
+            answer.at(pos + j) = x.at(j);
+        }
+        pos += 3;
+        
+    }
+    
+    for ( int i = 1; i <= this->giveNumberOfMasterNodes(); i++ ) {
+      
+        this->giveMasterNode(i)->giveUpdatedCoordinates(x, tStep);
+        for ( int j = 1; j <= x.giveSize(); j++ ) {
+            answer.at(pos + j) = x.at(j);
+        }
+        pos += 3;
+        
+    }
+}
+  
+  
+  
+  
+void
+ContactPair :: performCPP(GaussPoint *gp, TimeStep *tStep)
+{
+    // should work on a local slave coord-> compute global slave coord 
+    // (for when we only have slave gp's instead of actual slave nodes)
+    // Compute updated coordinates for all the involved points
+
+    FloatArray x, xibar;
+    this->giveCurrentCoordsArray(x, tStep);
+   
+    this->computeCPP( xibar, x );   
+    gp->setNaturalCoordinates( xibar );
+  
+}  
+  
+  
+void
+ContactPair :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
+{
+    // Computes the gap vector from the CCP (closest point projection) of 
+    // the slave node onto the master edge.
+    // gap = xs(xibar) - xm(xibar) = [N_slave, -N_master] * xhat 
+    FloatArray x;
+    FloatMatrix N;
+    this->giveCurrentCoordsArray(x, tStep);
+    this->computeNmatrixAt(lCoords, N);
+    answer.beProductOf(N, x);
+}  
   
   
 //--------------------------------  
@@ -164,28 +227,6 @@ ContactPairNode2Edge :: computeCovarTangentVectorsAt(const FloatArray &lCoords, 
 }
 
 
-void
-ContactPairNode2Edge :: performCPP(GaussPoint *gp, TimeStep *tStep)
-{
-    // should work on a local slave coord-> compute global slave coord 
-    // (for when we only have slave gp's instead of actual slave nodes)
-    // Compute updated coordinates for all the involved points
-    FloatArray xs, xm1, xm2;
-    this->giveSlaveNode(1)->giveUpdatedCoordinates(xs, tStep);
-    this->giveMasterNode(1)->giveUpdatedCoordinates(xm1, tStep);
-    this->giveMasterNode(2)->giveUpdatedCoordinates(xm2, tStep);
-    
-    // could x be created in a better way?
-    FloatArray x, xibar;
-    x = xs;
-    x.append(xm1);
-    x.append(xm2);
-    this->computeCPP( xibar, x );
-    this->xibar = xibar.at(1); // why not store the array?
-    
-    gp->setNaturalCoordinates( xibar );
-  
-}
 
 void
 ContactPairNode2Edge :: computeCPP(FloatArray &answer, const FloatArray &x)
@@ -210,15 +251,10 @@ ContactPairNode2Edge :: computeLinearizationOfCPP(const FloatArray &lCoords, Flo
     // Numerically compute the linearization of a CPP wrt contact element edgeNodes
     //TODO Add analytical version for straight segment
   
-    // Compute updated coordinates for all the involved points
-    FloatArray xs, xm1, xm2;
-    this->giveSlaveNode(1)->giveUpdatedCoordinates(xs, tStep);
-    this->giveMasterNode(1)->giveUpdatedCoordinates(xm1, tStep);
-    this->giveMasterNode(2)->giveUpdatedCoordinates(xm2, tStep);
-    
     // Numerical derivative
     FloatArray x0, x, xi0, xi, dxi;
-    x0 = xs; x0.append(xm1); x0.append(xm2);
+    this->giveCurrentCoordsArray(x0, tStep);
+    //x0 = xs; x0.append(xm1); x0.append(xm2);
     this->computeCPP( xi0, x0 );
   
     answer.resize( 1, x0.giveSize() );
@@ -267,19 +303,81 @@ ContactPairNode2Edge :: computeGap(FloatArray &answer, FloatArray &lCoords, Time
     // Computes the gap vector from the CCP (closest point projection) of 
     // the slave node onto the master edge.
     // gap = xs - xm(xibar) = xs - N_i(xibar) * xm_i
-  
-    this->giveSlaveNode(1)->giveUpdatedCoordinates(answer, tStep);
-    
-    FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation()); 
-    FloatArray N, xi;    
-    interp->edgeEvalN(N, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
-    for ( int i = 1; i <= N.giveSize(); i++ ) {
-        this->masterNodes[i-1]->giveUpdatedCoordinates(xi, tStep);
-        answer.add( -N.at(i), xi );
-    }
+    FloatArray x;
+    FloatMatrix N;
+    this->giveCurrentCoordsArray(x, tStep);
+    this->computeNmatrixAt(lCoords, N);
+    answer.beProductOf(N, x);
 }
 
 
+
+//-------------------------------------------
+
+
+
+ContactPairNode2Node :: ContactPairNode2Node(Node *master, Node *slave)
+{
+    /*
+    this->masterNode = master;
+    this->slaveNode  = slave;*/
+    this->masterNodes.resize(1);
+    this->masterNodes[0] = master;
+    this->slaveNodes.resize(1);
+    this->slaveNodes[0] = slave;
+}
+
+
+void
+ContactPairNode2Node :: computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep)
+{
+    FloatMatrix orthoSys;
+    FloatArray normal;
+    this->computeCurrentNormalAt(lCoords, normal, tStep);
+    orthoSys.beLocalCoordSys(normal);
+    g1.beColumnOf(orthoSys, 1);
+    g2.beColumnOf(orthoSys, 2);
+}
+
+
+
+void
+ContactPairNode2Node :: computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep)
+{
+ 
+    // compute normal as direction vector from master node to slave node
+    FloatArray xs, xm;
+    xs = *this->giveSlaveNode(1)->giveCoordinates();
+    xm = *this->giveMasterNode(1)->giveCoordinates();
+    normal = xs-xm;
+    double norm = normal.computeNorm();
+    if ( norm < 1.0e-8 ) {
+        OOFEM_ERROR("Couldn't compute normal between master node (num %d) and slave node (num %d), nodes are too close to each other.", 
+          this->giveMasterNode(1)->giveGlobalNumber(), this->giveSlaveNode(1)->giveGlobalNumber() )
+    } else {
+        normal.times( 1.0 / norm );
+    }    
+    
+}
+
+
+int
+ContactPairNode2Node :: instanciateYourself(DataReader *dr)
+{
+  
+//     IntArray edgeNodes, globalNodeArray;
+//     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > ( this->masterElement->giveInterpolation() );
+//     IntArray elNodes = this->masterElement->giveDofManArray(); 
+//     interp->computeEdgeMapping(edgeNodes, elNodes, this->masterElementEdgeNum );
+//     
+//     this->masterNodes.resize( edgeNodes.giveSize() );
+//     for ( int j = 1; j<= edgeNodes.giveSize(); j++ ) {        
+//         masterNodes[j-1] = this->masterElement->giveNode( edgeNodes.at(j) );
+//     }        
+//     
+    
+  return 1;
+}    
 
 
 }

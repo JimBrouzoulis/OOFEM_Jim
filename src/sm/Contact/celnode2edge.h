@@ -35,7 +35,6 @@
 #ifndef celnode2node_h
 #define celnode2node_h
 
-#include "contact/contactelement.h"
 #include "Contact/structuralcontactelement.h"
 
 ///@name Input fields for _IFT_Node2EdgeContact
@@ -47,33 +46,42 @@
 namespace oofem {
 class Domain;
 class ContactDefinition;
-class TimeStep;
-class FloatMatrix;
-class ContactPairNode2Edge;
 class ContactPair;
 
 class OOFEM_EXPORT Node2EdgeContact : public StructuralContactElement
 {
-protected:
-    ContactDefinition *cDef;
-    ContactPairNode2Edge *cPair;
-    
 public:
-    
-    /// Constructor.
     Node2EdgeContact(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair);
-    /// Destructor.
     virtual ~Node2EdgeContact(){};
     
     virtual void setupIntegrationPoints();
-    
-    virtual ContactPair *giveContactPair();
 
     virtual const char *giveInputRecordName() const { return _IFT_Node2EdgeContactP_Name; }
     
-    virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
+    //additional tangent from changes in contact position ->change name
+    //virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     
 };
+
+
+
+class OOFEM_EXPORT Node2EdgeContactL : public StructuralContactElementLagrange
+{
+public:
+    Node2EdgeContactL(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair);
+    virtual ~Node2EdgeContactL(){};
+    
+    virtual void setupIntegrationPoints();
+
+    virtual const char *giveInputRecordName() const { return _IFT_Node2EdgeContactP_Name; }
+    
+    //additional tangent from changes in contact position ->change name
+    //virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
+    
+};
+
+
+
 
 
 

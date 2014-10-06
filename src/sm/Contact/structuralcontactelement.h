@@ -73,7 +73,7 @@ public:
     virtual int instanciateYourself(DataReader *dr);
     virtual void setupIntegrationPoints() = 0;
     
-    virtual ContactPair *giveContactPair() { return NULL; };
+    virtual ContactPair *giveContactPair() { return cPair; };
 
     virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
     
@@ -83,17 +83,39 @@ public:
     
     virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep);
     virtual void computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
-
+    virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
       
-    // Necessary methods - pure virtual in base class
+    
+    virtual void computeContactForces(FloatArray &answer, TimeStep *tStep);    
+    
+    virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
+};
+
+
+
+
+
+class OOFEM_EXPORT StructuralContactElementLagrange : public StructuralContactElement
+{   
+public:
+    
+    /// Constructor.
+    StructuralContactElementLagrange(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair);
+    //: StructuralContactElement(num, d, cDef, cPair);
+    /// Destructor.
+    virtual ~StructuralContactElementLagrange(){};
+
+    virtual void computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep);
     virtual void computeContactForces(FloatArray &answer, TimeStep *tStep);    
     
     virtual void computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep);
 
     virtual void giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s);
-    //virtual const char *giveInputRecordName() const { return _IFT_Node2NodeContactP_Name; }
+
+    virtual void giveDofManagersToAppendTo(IntArray &answer); 
     
 };
+
 
 
 

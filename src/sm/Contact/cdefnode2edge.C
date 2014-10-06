@@ -45,7 +45,12 @@ namespace oofem {
 REGISTER_ContactDefinition(ContactDefinitionNode2Edge)
 
 
-ContactDefinitionNode2Edge :: ContactDefinitionNode2Edge(ContactManager *cMan) : ContactDefinition(cMan){}
+ContactDefinitionNode2Edge :: ContactDefinitionNode2Edge(ContactManager *cMan) : ContactDefinition(cMan)
+{
+  
+   
+  
+}
     
 
 IRResultType
@@ -83,7 +88,13 @@ ContactDefinitionNode2Edge :: initializeFrom(InputRecord *ir)
             globalNodeArray.at(j+1) = el->giveDofManagerNumber(edgeNodes.at(j));
         }        
         
-        ContactElement *cEl = new Node2EdgeContact(i, domain, this, cPair);
+        ContactElement *cEl;
+        if ( ir->hasField(_IFT_ContactDefinitionNode2Edge_Lagrange) ) {
+           cEl = new Node2EdgeContactL(i, domain, this, cPair);
+             this->setNumberOfConstraintEqToAdd(1);
+        } else {
+           cEl = new Node2EdgeContact(i, domain, this, cPair);
+        }
              
         // initialize contact element from dynamic input record - this is to be able to use regular element functions like giveLocArray
         DynamicInputRecord *dir;

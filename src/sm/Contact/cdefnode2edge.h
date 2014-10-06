@@ -44,7 +44,7 @@
 #define _IFT_ContactDefinitionNode2Edge_MasterElements "masterelements"
 #define _IFT_ContactDefinitionNode2Edge_MasterEdges "masteredges"
 #define _IFT_ContactDefinitionNode2Edge_SlaveNodes "slavenodes"
-
+#define _IFT_ContactDefinitionNode2Edge_Lagrange "lagrange"
 //@}
 
 namespace oofem {

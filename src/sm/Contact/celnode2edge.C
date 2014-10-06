@@ -33,9 +33,7 @@
  */
 
 #include "Contact/celnode2edge.h"
-#include "floatmatrix.h"
 #include "gaussintegrationrule.h"
-#include "gausspoint.h"
 #include "Contact/contactpair.h"
 
 
@@ -48,16 +46,6 @@ Node2EdgeContact :: Node2EdgeContact(int num, Domain *d, ContactDefinition *cDef
     this->numberOfDofMans = 3;
     this->cPair = static_cast< ContactPairNode2Edge * > ( cPair );
 };   
- 
-
-
-void
-Node2EdgeContact :: computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep)
-{
-    // rename
-    this->cPair->computeBmatrixAt(lCoords, traction, answer, tStep);
-  
-}
 
 
 void
@@ -65,7 +53,6 @@ Node2EdgeContact :: setupIntegrationPoints()
 {
     // Sets up the integration rule array which contains all the necessary integration points
     if ( this->integrationRule == NULL ) {
-        //TODO sets a null pointer for the element in the iRule 
         this->integrationRule = new GaussIntegrationRule(1, this) ;
         this->integrationRule->SetUpPointsOnLine(1, _Unknown);
     }
@@ -74,15 +61,27 @@ Node2EdgeContact :: setupIntegrationPoints()
 }
 
 
-ContactPair* 
-Node2EdgeContact :: giveContactPair() 
-{ 
-    return dynamic_cast< ContactPair* > ( this->cPair ); 
+
+
+
+Node2EdgeContactL :: Node2EdgeContactL(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair) : StructuralContactElementLagrange(num, d, cDef, cPair)
+{   
+    this->numberOfDofMans = 3;
+    this->cPair = static_cast< ContactPairNode2Edge * > ( cPair );
+};   
+
+
+void
+Node2EdgeContactL :: setupIntegrationPoints()
+{
+    // Sets up the integration rule array which contains all the necessary integration points
+    if ( this->integrationRule == NULL ) {
+        this->integrationRule = new GaussIntegrationRule(1, this) ;
+        this->integrationRule->SetUpPointsOnLine(1, _Unknown);
+    }
+    
   
 }
-
-
-
 
 
     

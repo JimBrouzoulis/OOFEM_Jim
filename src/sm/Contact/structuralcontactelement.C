@@ -95,8 +95,11 @@ StructuralContactElement :: computeContactTractionAt(GaussPoint *gp, FloatArray 
 void
 StructuralContactElement :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 {
-    answer.clear();
+    
     FloatArray gap;
+    int ndofs = this->giveNumberOfDofManagers() * 3;
+    answer.resize(ndofs);
+    answer.zero();
     
     for ( GaussPoint *gp : *this->integrationRule ) {
         //this->performCPP(gp, tStep);
@@ -165,7 +168,8 @@ StructuralContactElement :: computeContactTangent(FloatMatrix &answer, CharType 
         }
     }
 }
-  
+
+
   
 void
 StructuralContactElement :: computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer)
@@ -173,13 +177,6 @@ StructuralContactElement :: computeNmatrixAt(const FloatArray &lCoords, FloatMat
     this->giveContactPair()->computeNmatrixAt(lCoords, answer);
 }
 
-// void
-// StructuralContactElement :: computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep)
-// {
-//   
-//     this->cPair->computeBmatrixAt(lCoords, traction, answer, tStep);
-//   
-// }
 
 
 void
@@ -222,9 +219,6 @@ StructuralContactElement :: giveLocationArray(IntArray &answer, const UnknownNum
       
         pos += 3;
     }
-    
-    //Element :: giveLocationArray(answer, s); will only give eqns for the dof ids I have not D_w for example. TODO 
-   
    
 }    
 
@@ -234,15 +228,6 @@ StructuralContactElement :: computeCurrentAreaAround(IntegrationPoint *ip, TimeS
 {
     return this->giveContactPair()->computeCurrentAreaAround(ip, tStep);
 }
-
-
-// void
-// StructuralContactElement :: computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep)
-// {   
-//     this->cPair->computeCurrentNormalAt(lCoords, normal, tStep);
-// }
-
-
 
 
 void
@@ -255,6 +240,180 @@ StructuralContactElement :: computeCurrentTransformationMatrixAt(const FloatArra
 
 
 
+
+//---------------------------------------
+// Lagrange multiplier associated methods
+//---------------------------------------
+
+
+StructuralContactElementLagrange :: StructuralContactElementLagrange(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair) : 
+       StructuralContactElement(num, d, cDef, cPair)
+{
+
+    
+         
+}
+
+void
+StructuralContactElementLagrange :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep)
+{
+    // First evaluate constitutive model
+    // TODO but g_N->0 => t_N = 0 => t_T = 0
+    StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
+    mat->giveEngTraction_3d(t, gp, gap, tStep);
+          
+    
+    // The normal contact pressure is determined from the Lagarange multipliers 
+    Dof *dof = this->giveDofManager(1)->giveDofWithID( this->giveDofIdArray().at(1) );
+    double lambda = dof->giveUnknown(VM_Total, tStep);
+    t.at(3) = lambda;
+
+} 
+
+
+void
+StructuralContactElementLagrange :: giveLocationArray(IntArray &answer, const UnknownNumberingScheme &s)
+{
+    // should return location array for the master and the slave node plus the lagrange multipliers
+    StructuralContactElement ::giveLocationArray(answer, s);
+    
+    
+    for ( int i = 1; i <= this->giveContactPair()->giveNumberOfSlaveNodes(); i++ ) {
+      
+        Node *node = this->giveContactPair()->giveSlaveNode(i);
+        if ( node->hasDofID( (DofIDItem)this->giveDofIdArray().at(1) ) ) { 
+      
+            Dof *dof= node->giveDofWithID( (DofIDItem)this->giveDofIdArray().at(1) );
+            answer.followedBy( s.giveDofEquationNumber(dof) );
+        }
+    }
+
+   
+}    
+
+
+
+
+void
+StructuralContactElementLagrange :: computeContactForces(FloatArray &answer, TimeStep *tStep)
+{
+    
+    StructuralContactElement :: computeContactForces(answer, tStep);
+
+    FloatArray gap;
+    int numDispDofs = this->giveNumberOfDofManagers() * 3;
+    int ndofs = numDispDofs + this->integrationRule[0].giveNumberOfIntegrationPoints();
+    answer.resizeWithValues(ndofs);
+    for ( GaussPoint *gp : *this->integrationRule ) {
+        FloatArray lCoords = *gp->giveNaturalCoordinates();
+        this->computeGap(gap, lCoords, tStep); 
+        if ( gap.at(3) < 0.0 ) {
+            answer.at( numDispDofs + gp->giveNumber() ) = gap.at(3);
+        }
+    }
+}
+  
+  
+  
+void
+StructuralContactElementLagrange :: computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep)
+{
+
+    
+    int numDispDofs = this->giveNumberOfDofManagers() * 3;
+    int ndofs = numDispDofs + this->integrationRule[0].giveNumberOfIntegrationPoints();
+        
+    answer.resize(ndofs, ndofs);
+    answer.zero();
+
+    FloatMatrix temp;
+    FloatArray normal, C;
+    FloatMatrix globalSys, DN;
+    temp.clear();
+    for ( GaussPoint *gp : *this->integrationRule ) {
+  
+        this->performCPP(gp, tStep);
+        FloatArray lCoords = *gp->giveNaturalCoordinates();
+        FloatArray gap;
+        this->computeGap(gap, lCoords, tStep);
+    
+
+        if( gap.at(3) < 0.0 ) {
+            // D( delta(g) * t ) = delta(g) * D(t) + t * Delta( delta(g) ) = 1 + 2
+          
+            // Part 1: delta(g) * D(t) = delta(g) * dt/dg * D(g) 
+            FloatMatrix N, D;
+            this->computeNmatrixAt( lCoords, N); 
+            
+            StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial* > ( this->giveContactMaterial() );
+            mat->give3dStiffnessMatrix_Eng(D, TangentStiffness, gp, tStep); 
+            D.at(3,3) = 0.0;
+            
+            
+            this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
+            D.rotatedWith(globalSys, 't');                   // transform to global system
+            DN.beProductOf(D,N);
+            double dA = this->computeCurrentAreaAround(gp, tStep);
+            temp.plusProductUnsym(N, DN, dA);  
+            
+            
+            this->giveContactPair()->computeNmatrixAt(lCoords, N);
+            this->giveContactPair()->computeCurrentNormalAt(lCoords, normal, tStep);
+            C.beTProductOf(N, normal);
+            answer.addSubVectorCol(C, 1, numDispDofs + gp->giveNumber() );
+            answer.addSubVectorRow(C, numDispDofs + gp->giveNumber(), 1 );
+        }
+    }
+    if ( temp.giveNumberOfColumns() ) {
+        IntArray loc;
+        loc.enumerate(numDispDofs);
+        answer.assemble(temp, loc, loc);
+    }
+
+//     answer.resizeWithData(ndofs, ndofs);
+//     FloatMatrix N;
+//     
+//     for ( GaussPoint *gp : *this->integrationRule ) {
+//         FloatArray lCoords = *gp->giveNaturalCoordinates();
+//         FloatArray gap;
+//         this->computeGap(gap, lCoords, tStep);
+//     
+//         if( gap.at(3) < 0.0 ) {
+//           this->giveContactPair()->computeNmatrixAt(lCoords, N);
+//           this->giveContactPair()->computeCurrentNormalAt(lCoords, normal, tStep);
+//           C.beTProductOf(N, normal);
+//           answer.addSubVectorCol(C, 1, numDispDofs + gp->giveNumber() );
+//           answer.addSubVectorRow(C, numDispDofs + gp->giveNumber(), 1 );
+//         }
+//     }
+//     
+    //TODO need to add a small number for the solver
+    for ( int i = 1; i <= ndofs; i++ ) {
+        answer.at(i,i) += 1.0e-6;
+    }
+}  
+  
+
+  
+  
+void
+StructuralContactElementLagrange :: giveDofManagersToAppendTo(IntArray &answer)
+{
+    int numSlaveNodes = this->giveContactPair()->giveNumberOfSlaveNodes();
+    answer.resize(numSlaveNodes);
+    
+    for ( int i = 1; i <= numSlaveNodes; i++ ) {
+      
+      Node *node = this->giveContactPair()->giveSlaveNode(i);
+      answer.at(i) = node->giveNumber();
+    
+      
+    }
+  
+    
+}
+    
+  
     
 }
 

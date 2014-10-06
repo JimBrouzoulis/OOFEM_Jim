@@ -70,15 +70,18 @@ public:
     virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
     virtual void computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
     virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep);
-    virtual void performCPP(GaussPoint *gp, TimeStep *tStep){ };
     
-    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep){};
+    virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
+    virtual void computeCPP(FloatArray &answer, const FloatArray &x){};
+    
+    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
     
     
     virtual void computeNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer);
     virtual void giveSlaveNarray(const FloatArray &lCoords, FloatArray &answer) { answer.clear(); };
     virtual void giveMasterNarray(const FloatArray &lCoords, FloatArray &answer) { answer.clear(); };;
-    
+    virtual void giveCurrentCoordsArray(FloatArray &answer, TimeStep *tStep);
+
 protected:
     std :: vector< Node* > masterNodes;
     std :: vector< Node* > slaveNodes;
@@ -109,7 +112,7 @@ public:
     virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
     
-    virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
+//     virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
     
     virtual void computeCPP(FloatArray &answer, const FloatArray &x);
     virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
@@ -121,15 +124,42 @@ public:
 private:
     Element *masterElement;   // the element to which the edge belongs TODO what to do with shared edges? 
     int masterElementEdgeNum; // local edge number on the master element 
-    Node *slaveNode;
+    Node *slaveNode; //remove
     
-    //std::vector< Node* > masterNodes;
-    double xibar; // local coordinate from CPP
+    
+    double xibar; // local coordinate from CPP - remove
     
 };
     
 
 
+class OOFEM_EXPORT ContactPairNode2Node : public ContactPair
+{   
+public:
+
+    ContactPairNode2Node(Node *master, Node *slave);
+    virtual ~ContactPairNode2Node() {};
+
+    virtual int instanciateYourself(DataReader *dr);
+    virtual const char *giveClassName() const { return "ContactPairNode2Node"; }
+    
+    
+    //element methods
+    virtual void giveSlaveNarray(const FloatArray &lCoords, FloatArray &answer) { answer = {1.0}; };
+    virtual void giveMasterNarray(const FloatArray &lCoords, FloatArray &answer) { answer = {1.0}; };
+    
+    
+    //virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
+    virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
+    virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
+    //virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
+    
+    virtual void computeCPP(FloatArray &answer, const FloatArray &x) { answer = {0.0, 0.0, 0.0}; };
+    //virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
+    
+//    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep){};
+    virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep) {return 1.0; }; //TODO
+};
 
 
 

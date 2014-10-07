@@ -55,6 +55,7 @@ ContactElement :: ContactElement(int num, Domain *d, ContactDefinition *cDef) : 
     this->integrationRule = NULL;
     this->petrubedEquation = 0;
     this->cDef = cDef;
+    this->inContact = false;
 };  
   
 

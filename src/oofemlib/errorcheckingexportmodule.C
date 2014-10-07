@@ -164,7 +164,7 @@ ElementErrorCheckingRule :: check(Domain *domain, TimeStep *tStep)
         OOFEM_WARNING("Check failed in: element %d, gpnum %d, ist %d, component %d:\n"
                       "Component not found!",
                       number, gpnum, ist, component);
-        ipval.printYourself();
+        //ipval.printYourself();
         return false;
     }
 
@@ -175,7 +175,7 @@ ElementErrorCheckingRule :: check(Domain *domain, TimeStep *tStep)
                       "value is %.8e, but should be %.8e ( error is %e but tolerance is %e )",
                       tstep, number, gpnum, ist, component,
                       elementValue, value, fabs(elementValue-value), tolerance );
-        ipval.printYourself();
+        //ipval.printYourself();
     }
     return check;
 }

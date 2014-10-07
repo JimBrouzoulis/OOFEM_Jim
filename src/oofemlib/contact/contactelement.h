@@ -93,6 +93,9 @@ public:
     virtual int instanciateYourself(DataReader *dr){ return 1; };
     //virtual const char *giveClassName() const { return "ContactDefinition"; }
     bool isInContact() { return inContact; };
+    void resetContactFlag() { this->inContact = false; };
+    void setContactFlag() { this->inContact = true; }
+    
     virtual void giveDofManagersToAppendTo(IntArray &answer) { answer = {}; }; 
     
     

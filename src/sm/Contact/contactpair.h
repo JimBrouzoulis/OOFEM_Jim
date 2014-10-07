@@ -112,20 +112,15 @@ public:
     virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
     
-//     virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
-    
     virtual void computeCPP(FloatArray &answer, const FloatArray &x);
     virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
     
-    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
-    // gp method
-    double giveCPPcoord() { return this->xibar; };
+
     Element *giveMasterElement() { return this->masterElement; };
 private:
     Element *masterElement;   // the element to which the edge belongs TODO what to do with shared edges? 
     int masterElementEdgeNum; // local edge number on the master element 
-    Node *slaveNode; //remove
-    
+
     
     double xibar; // local coordinate from CPP - remove
     
@@ -152,12 +147,10 @@ public:
     //virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
     virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
-    //virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
     
     virtual void computeCPP(FloatArray &answer, const FloatArray &x) { answer = {0.0, 0.0, 0.0}; };
     //virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
-    
-//    virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep){};
+  
     virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep) {return 1.0; }; //TODO
 };
 

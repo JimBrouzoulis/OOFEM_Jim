@@ -139,7 +139,6 @@ ContactPair :: performCPP(GaussPoint *gp, TimeStep *tStep)
    
     this->computeCPP( xibar, x );   
     gp->setNaturalCoordinates( xibar );
-  
 }  
   
   
@@ -167,7 +166,7 @@ ContactPairNode2Edge :: ContactPairNode2Edge(Element *el, int edge, Node *slave)
     this->masterElementEdgeNum = edge;
     this->slaveNodes.resize(1);
     this->slaveNodes[0] = slave;
-    this->xibar = -2.0; // outside element
+    //this->xibar = -2.0; // outside element
 }
     
 
@@ -242,7 +241,12 @@ ContactPairNode2Edge :: computeCPP(FloatArray &answer, const FloatArray &x)
     FloatArray dx = xs - xm1;
     double l2 = a.computeSquaredNorm();
     double xibar = dx.dotProduct(a) / l2;
-    answer = { -1.0 + xibar * 2.0 }; // transform from [0,1] to [-1,1]
+    if ( xibar >= 0.0  &&  xibar <= 1.0) { 
+        answer = { -1.0 + xibar * 2.0 }; // transform from [0,1] to [-1,1]
+    } else {
+        answer = {}; // outside
+    }
+      
 }
 
 void
@@ -297,24 +301,11 @@ ContactPairNode2Edge :: computeBmatrixAt(const FloatArray &lCoords, const FloatA
      
 }    
 
-void
-ContactPairNode2Edge :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
-{
-    // Computes the gap vector from the CCP (closest point projection) of 
-    // the slave node onto the master edge.
-    // gap = xs - xm(xibar) = xs - N_i(xibar) * xm_i
-    FloatArray x;
-    FloatMatrix N;
-    this->giveCurrentCoordsArray(x, tStep);
-    this->computeNmatrixAt(lCoords, N);
-    answer.beProductOf(N, x);
-}
+
 
 
 
 //-------------------------------------------
-
-
 
 ContactPairNode2Node :: ContactPairNode2Node(Node *master, Node *slave)
 {

@@ -67,11 +67,15 @@ void
 StructuralContactElement :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
 {
     this->giveContactPair()->computeGap(answer, lCoords, tStep);
+    
     // Rotate gap to a local system
     FloatMatrix orthoBase;
     this->giveContactPair()->computeCurrentTransformationMatrixAt(answer, orthoBase, tStep);
     answer.rotatedWith(orthoBase, 't');
 
+    if ( answer.at(3) <= 0.0 ) {
+        this->setContactFlag();
+    }
 }
 
 void
@@ -106,9 +110,12 @@ StructuralContactElement :: computeContactForces(FloatArray &answer, TimeStep *t
         this->giveContactPair()->performCPP(gp, tStep);
         FloatArray lCoords = *gp->giveNaturalCoordinates();
         
+        if ( !lCoords.giveSize() ) {
+            this->resetContactFlag();
+            continue;  
+        }
         this->computeGap(gap, lCoords, tStep); 
-        if ( gap.at(3) < 0.0 ) {
-            ;
+        if ( this->isInContact() ) {
             FloatArray t;
             this->computeContactTractionAt(gp, t, gap, tStep); // local system
             
@@ -132,12 +139,11 @@ StructuralContactElement :: computeContactTangent(FloatMatrix &answer, CharType 
     
     for ( GaussPoint *gp : *this->integrationRule ) {
   
-        this->performCPP(gp, tStep);
+        //this->performCPP(gp, tStep);
         FloatArray lCoords = *gp->giveNaturalCoordinates();
         FloatArray gap;
-        this->computeGap(gap, lCoords, tStep);
-    
-        if( gap.at(3) < 0.0 ) {
+
+        if ( this->isInContact() ) {
             // D( delta(g) * t ) = delta(g) * D(t) + t * Delta( delta(g) ) = 1 + 2
           
             // Part 1: delta(g) * D(t) = delta(g) * dt/dg * D(g) 
@@ -298,19 +304,43 @@ void
 StructuralContactElementLagrange :: computeContactForces(FloatArray &answer, TimeStep *tStep)
 {
     
-    StructuralContactElement :: computeContactForces(answer, tStep);
-
-    FloatArray gap;
+    FloatArray gap, temp;
     int numDispDofs = this->giveNumberOfDofManagers() * 3;
     int ndofs = numDispDofs + this->integrationRule[0].giveNumberOfIntegrationPoints();
-    answer.resizeWithValues(ndofs);
+    
+    answer.resize(ndofs);
+    answer.zero();
+    
     for ( GaussPoint *gp : *this->integrationRule ) {
+        this->giveContactPair()->performCPP(gp, tStep);
         FloatArray lCoords = *gp->giveNaturalCoordinates();
-        this->computeGap(gap, lCoords, tStep); 
-        if ( gap.at(3) < 0.0 ) {
-            answer.at( numDispDofs + gp->giveNumber() ) = gap.at(3);
+        if ( !lCoords.giveSize() ) {
+            this->resetContactFlag();
+            continue;  
         }
+        
+        this->computeGap(gap, lCoords, tStep); 
+        if ( this->isInContact() ) {
+            FloatArray t;
+            this->computeContactTractionAt(gp, t, gap, tStep); // local system
+            
+            FloatMatrix N, globalSys;
+            this->computeNmatrixAt(lCoords, N);
+            this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
+            t.rotatedWith(globalSys, 't');                     // transform to global system
+            double dA = this->computeCurrentAreaAround(gp, tStep);
+            temp.plusProduct(N, t, dA);
+            
+            answer.at( numDispDofs + gp->giveNumber() ) = gap.at(3)*dA; // The gap constraints are scaled with dA to give a symmetric tangent.
+            
+        }
+    }    
+    
+    if ( temp.giveSize() ) {
+        answer.addSubVector(temp, 1);
     }
+
+    
 }
   
   
@@ -332,13 +362,9 @@ StructuralContactElementLagrange :: computeContactTangent(FloatMatrix &answer, C
     temp.clear();
     for ( GaussPoint *gp : *this->integrationRule ) {
   
-        this->performCPP(gp, tStep);
-        FloatArray lCoords = *gp->giveNaturalCoordinates();
-        FloatArray gap;
-        this->computeGap(gap, lCoords, tStep);
-    
+         FloatArray lCoords = *gp->giveNaturalCoordinates();
 
-        if( gap.at(3) < 0.0 ) {
+         if ( this->isInContact() ) {
             // D( delta(g) * t ) = delta(g) * D(t) + t * Delta( delta(g) ) = 1 + 2
           
             // Part 1: delta(g) * D(t) = delta(g) * dt/dg * D(g) 
@@ -360,36 +386,21 @@ StructuralContactElementLagrange :: computeContactTangent(FloatMatrix &answer, C
             this->giveContactPair()->computeNmatrixAt(lCoords, N);
             this->giveContactPair()->computeCurrentNormalAt(lCoords, normal, tStep);
             C.beTProductOf(N, normal);
-            answer.addSubVectorCol(C, 1, numDispDofs + gp->giveNumber() );
+            C.times(dA); // gives contact forces
             answer.addSubVectorRow(C, numDispDofs + gp->giveNumber(), 1 );
+            answer.addSubVectorCol(C, 1, numDispDofs + gp->giveNumber() );
         }
     }
+    
     if ( temp.giveNumberOfColumns() ) {
         IntArray loc;
         loc.enumerate(numDispDofs);
         answer.assemble(temp, loc, loc);
     }
 
-//     answer.resizeWithData(ndofs, ndofs);
-//     FloatMatrix N;
-//     
-//     for ( GaussPoint *gp : *this->integrationRule ) {
-//         FloatArray lCoords = *gp->giveNaturalCoordinates();
-//         FloatArray gap;
-//         this->computeGap(gap, lCoords, tStep);
-//     
-//         if( gap.at(3) < 0.0 ) {
-//           this->giveContactPair()->computeNmatrixAt(lCoords, N);
-//           this->giveContactPair()->computeCurrentNormalAt(lCoords, normal, tStep);
-//           C.beTProductOf(N, normal);
-//           answer.addSubVectorCol(C, 1, numDispDofs + gp->giveNumber() );
-//           answer.addSubVectorRow(C, numDispDofs + gp->giveNumber(), 1 );
-//         }
-//     }
-//     
     //TODO need to add a small number for the solver
     for ( int i = 1; i <= ndofs; i++ ) {
-        answer.at(i,i) += 1.0e-6;
+        answer.at(i,i) += 1.0e-9;
     }
 }  
   
@@ -403,11 +414,8 @@ StructuralContactElementLagrange :: giveDofManagersToAppendTo(IntArray &answer)
     answer.resize(numSlaveNodes);
     
     for ( int i = 1; i <= numSlaveNodes; i++ ) {
-      
       Node *node = this->giveContactPair()->giveSlaveNode(i);
-      answer.at(i) = node->giveNumber();
-    
-      
+      answer.at(i) = node->giveNumber();  
     }
   
     

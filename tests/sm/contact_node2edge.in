@@ -37,10 +37,11 @@ PiecewiseLinFunction 2 nPoints 2  t 2  0. 4 f(t) 2  1.0 4.0
 PiecewiseLinFunction 3 nPoints 2  t 2  0. 4 f(t) 2  0.0 1.0
 Set 1 nodes 2 1 4
 Set 2 nodes 2 6 7
-ContactManager 1  numcontactdef 1
+ContactManager 1  numcontactdef 2
 #
 # add contact definition
-CDef_Node2EdgeP  1 masterelements 2 1 1 masteredges 2 2 2   slavenodes 2  5 8 material 3
+CDef_Node2EdgeP  1 masterelements 1 1 masteredges 1 2   slavenodes 1  5 material 3 
+CDef_Node2EdgeP  2 masterelements 1 1 masteredges 1 2   slavenodes 1  8 material 3 lagrange
 #
 #
 #%BEGIN_CHECK% tolerance 1.e-3

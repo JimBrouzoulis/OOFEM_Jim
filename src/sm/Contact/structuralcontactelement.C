@@ -67,12 +67,10 @@ void
 StructuralContactElement :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
 {
     this->giveContactPair()->computeGap(answer, lCoords, tStep);
-
     // Rotate gap to a local system
     FloatMatrix orthoBase;
     this->giveContactPair()->computeCurrentTransformationMatrixAt(answer, orthoBase, tStep);
-    answer.rotatedWith(orthoBase, 't');
-
+    answer.rotatedWith(orthoBase, 'n');
     if ( answer.at(3) <= 0.0 ) {
         this->setContactFlag();
         printf("    YES    ");
@@ -126,7 +124,7 @@ StructuralContactElement :: computeContactForces(FloatArray &answer, TimeStep *t
             FloatMatrix N, globalSys;
             this->computeNmatrixAt(lCoords, N);
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-            t.rotatedWith(globalSys, 'n');                     // transform to global system
+            t.rotatedWith(globalSys, 't');                     // transform to global system
             double dA = this->computeCurrentAreaAround(gp, tStep);
             answer.plusProduct(N, t, dA);
         }
@@ -336,7 +334,7 @@ StructuralContactElementLagrange :: computeContactForces(FloatArray &answer, Tim
             FloatMatrix N, globalSys;
             this->computeNmatrixAt(lCoords, N);
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-            t.rotatedWith(globalSys, 'n');                     // transform to global system
+            t.rotatedWith(globalSys, 't');                     // transform to global system
             double dA = this->computeCurrentAreaAround(gp, tStep);
             temp.plusProduct(N, t, dA);
             

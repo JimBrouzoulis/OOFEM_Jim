@@ -45,62 +45,61 @@ CDef_Node2EdgeP  2 masterelements 1 1 masteredges 1 2   slavenodes 1  8 material
 #
 #
 #%BEGIN_CHECK% tolerance 1.e-3
-#
-#NODE tStep 5 number 2 dof 1 unknown d value -0.0124423
-#NODE tStep 5 number 2 dof 2 unknown d value -0.00507239
-#NODE tStep 5 number 3 dof 1 unknown d value -0.00593767
-#NODE tStep 5 number 3 dof 2 unknown d value 0.00182009
-#NODE tStep 5 number 5 dof 1 unknown d value -0.0114173
-#NODE tStep 5 number 5 dof 2 unknown d value 0.0112771
-#NODE tStep 5 number 8 dof 1 unknown d value -0.00849828
-#NODE tStep 5 number 8 dof 2 unknown d value 0.0119663
-#
-#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 1 value -0.707495
-#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 2 value 0.0949226
+#NODE tStep 5 number 2 dof 1 unknown d value -0.0124103
+#NODE tStep 5 number 2 dof 2 unknown d value -0.00497017
+#NODE tStep 5 number 3 dof 1 unknown d value -0.00598466
+#NODE tStep 5 number 3 dof 2 unknown d value 0.00190708
+#NODE tStep 5 number 5 dof 1 unknown d value -0.0113982
+#NODE tStep 5 number 5 dof 2 unknown d value 0.0112417
+#NODE tStep 5 number 8 dof 1 unknown d value -0.00851401
+#NODE tStep 5 number 8 dof 2 unknown d value 0.0119296
+#NODE tStep 5 number 8 dof 23 unknown d value -0.582634
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 1 value -0.710886
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 2 value 0.0934744
 #ELEMENT tStep 5 number 1 gp 1 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 1 gp 1 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 1 gp 1 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 6 value -8.67362e-18
-#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 1 value -1.10807
-#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 2 value -0.00522223
+#ELEMENT tStep 5 number 1 gp 1 keyword 1 component 6 value 0.00299442
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 1 value -1.1066
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 2 value -0.00545439
 #ELEMENT tStep 5 number 1 gp 2 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 1 gp 2 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 1 gp 2 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 6 value -8.67362e-18
-#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 1 value -0.760553
-#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 2 value -0.117311
+#ELEMENT tStep 5 number 1 gp 2 keyword 1 component 6 value 0.00299442
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 1 value -0.763828
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 2 value -0.11829
 #ELEMENT tStep 5 number 1 gp 3 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 1 gp 3 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 1 gp 3 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 6 value -8.67362e-18
-#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 1 value -1.16113
-#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 2 value -0.217456
+#ELEMENT tStep 5 number 1 gp 3 keyword 1 component 6 value 0.00299442
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 1 value -1.15954
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 2 value -0.217219
 #ELEMENT tStep 5 number 1 gp 4 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 1 gp 4 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 1 gp 4 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 6 value -8.67362e-18
-#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 1 value -3.03403
-#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 2 value -0.596669
+#ELEMENT tStep 5 number 1 gp 4 keyword 1 component 6 value 0.00299442
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 1 value -3.02519
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 2 value -0.594769
 #ELEMENT tStep 5 number 2 gp 1 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 2 gp 1 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 2 gp 1 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 6 value -3.46945e-16
-#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 1 value -1.23638
-#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 2 value -0.147257
+#ELEMENT tStep 5 number 2 gp 1 keyword 1 component 6 value 0.00665427
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 1 value -1.249
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 2 value -0.150722
 #ELEMENT tStep 5 number 2 gp 2 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 2 gp 2 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 2 gp 2 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 6 value -3.46945e-16
-#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 1 value -2.91612
-#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 2 value -0.125039
+#ELEMENT tStep 5 number 2 gp 2 keyword 1 component 6 value 0.00665427
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 1 value -2.90751
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 2 value -0.124047
 #ELEMENT tStep 5 number 2 gp 3 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 2 gp 3 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 2 gp 3 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 6 value -3.46945e-16
-#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 1 value -1.11848
-#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 2 value 0.324373
+#ELEMENT tStep 5 number 2 gp 3 keyword 1 component 6 value 0.00665427
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 1 value -1.13132
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 2 value 0.32
 #ELEMENT tStep 5 number 2 gp 4 keyword 1 component 3 value 0
 #ELEMENT tStep 5 number 2 gp 4 keyword 1 component 4 value 0
 #ELEMENT tStep 5 number 2 gp 4 keyword 1 component 5 value 0
-#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 6 value -3.46945e-16
+#ELEMENT tStep 5 number 2 gp 4 keyword 1 component 6 value 0.00665427
 #%END_CHECK%

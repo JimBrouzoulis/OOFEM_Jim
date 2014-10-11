@@ -172,8 +172,8 @@ ContactPair :: computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tSt
     FloatMatrix N;
     this->giveCurrentCoordsArray(xhat, tStep);
     FloatArray gap, g1, g2, dxi;
-    FloatArray Fprime;
-    FloatMatrix Fbis, metric;
+    FloatArray Fprime, g11, g12, g22;
+    FloatMatrix Fbis, metric, metric2;
     
     const double tol = 1.0e-4;
     xi = {0.0, 0.0}; // initial guess
@@ -192,12 +192,21 @@ ContactPair :: computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tSt
             if( xi.at(1)<-1.0 || xi.at(1)>1.0  ||  xi.at(2)<-1.0 || xi.at(2)>1.0 ) { //TODO not ok for certain el. like triangles
                 xi.clear();
             }
-            //xi.printYourself();
+            //printf("num iter %d \n", iter);
             return;
         }
         // compute metric tensor
         metric = { { g1.dotProduct(g1), g2.dotProduct(g1) }, { g1.dotProduct(g2), g2.dotProduct(g2)} }; // symmetric
-        Fbis = metric; // TODO add additional higher order terms
+        Fbis = metric; 
+        
+        // Add terms associated with curvature of the surface  
+        ///@Note doesn't seem to affect convergence - only a few percent of Fbis. Maybe if the gap is large? 
+//        this->computeCovarTangentVectorGradientsAt(xi, g11, g12, g22, tStep);
+//         metric2 = { { g11.dotProduct(gap), g12.dotProduct(gap) }, { g12.dotProduct(gap), g22.dotProduct(gap)} }; 
+//         Fbis.subtract(metric2);
+//         metric2.printYourself("metric 2");
+//         Fbis.printYourself("Fbis");
+        
         
         Fbis.solveForRhs(Fprime, dxi);
         xi.subtract(dxi);
@@ -283,8 +292,20 @@ void
 ContactPairNode2Edge :: computeCovarTangentVectorGradientsAt(const FloatArray &lCoords, FloatArray &g11, FloatArray &g12, FloatArray &g22, TimeStep *tStep)
 {
   
-  
-  
+     // Computes the gradients of the updated covariant tangent (base) vectors
+     FloatArray d2Ndxi2;
+     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > (this->masterElement->giveInterpolation() );
+     interp->edgeEvald2Ndxi2( d2Ndxi2, this->masterElementEdgeNum, lCoords, FEIElementGeometryWrapper(this->masterElement) );
+     g11.resize(3); g11.zero();
+     FloatArray x;
+     for ( int i = 1; i <= d2Ndxi2.giveSize(); i++ ) {
+         this->giveMasterNode(i)->giveUpdatedCoordinates(x, tStep);
+         g11.add( d2Ndxi2.at(i), x);
+     }
+     
+     // the second base vector is constant
+     g12 = {0.0, 0.0, 0.0};
+     g22 = {0.0, 0.0, 0.0};
 }
 
 void

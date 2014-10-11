@@ -292,7 +292,7 @@ StructuralMaterial :: giveFirstPKStressVector_PlaneStress(FloatArray &answer, Ga
         this->giveFirstPKStressVector_3d(vP, gp, vF, tStep);
         vP_control.beSubArrayOf(vP, P_control);
         if ( vP_control.computeNorm() < 1e-6 ) { ///@todo We need a tolerance here!
-            StructuralMaterial :: giveReducedVectorForm(answer, vP, _1dMat);
+            StructuralMaterial :: giveReducedVectorForm(answer, vP, _PlaneStress);
             return;
         }
 

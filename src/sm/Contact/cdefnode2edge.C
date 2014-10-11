@@ -84,9 +84,10 @@ ContactDefinitionNode2Edge :: initializeFrom(InputRecord *ir)
         
         globalNodeArray.resize(edgeNodes.giveSize() + 1);
         globalNodeArray.at(1) = slaveNodes.at(i);
-        for ( int j = 1; j<= edgeNodes.giveSize(); j++ ) {        
-            globalNodeArray.at(j+1) = el->giveDofManagerNumber(edgeNodes.at(j));
-        }        
+//         for ( int j = 1; j<= edgeNodes.giveSize(); j++ ) {        
+//             globalNodeArray.at(j+1) = el->giveDofManagerNumber(edgeNodes.at(j));
+//         }        
+        globalNodeArray.followedBy(edgeNodes);
         
         ContactElement *cEl;
         if ( ir->hasField(_IFT_ContactDefinitionNode2Edge_Lagrange) ) {

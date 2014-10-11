@@ -43,7 +43,6 @@ namespace oofem {
   
 Node2EdgeContact :: Node2EdgeContact(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair) : StructuralContactElement(num, d, cDef, cPair)
 {   
-    this->numberOfDofMans = 3;
     this->cPair = static_cast< ContactPairNode2Edge * > ( cPair );
 };   
 
@@ -66,7 +65,7 @@ Node2EdgeContact :: setupIntegrationPoints()
 
 Node2EdgeContactL :: Node2EdgeContactL(int num, Domain *d, ContactDefinition *cDef, ContactPair *cPair) : StructuralContactElementLagrange(num, d, cDef, cPair)
 {   
-    this->numberOfDofMans = 3;
+   // this->numberOfDofMans = 3;
     this->cPair = static_cast< ContactPairNode2Edge * > ( cPair );
 };   
 

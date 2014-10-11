@@ -67,7 +67,7 @@ void
 StructuralContactElement :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
 {
     this->giveContactPair()->computeGap(answer, lCoords, tStep);
-    
+
     // Rotate gap to a local system
     FloatMatrix orthoBase;
     this->giveContactPair()->computeCurrentTransformationMatrixAt(answer, orthoBase, tStep);
@@ -75,6 +75,10 @@ StructuralContactElement :: computeGap(FloatArray &answer, FloatArray &lCoords, 
 
     if ( answer.at(3) <= 0.0 ) {
         this->setContactFlag();
+        printf("    YES    ");
+    } else { 
+        printf("    NO     "); 
+      
     }
 }
 
@@ -101,12 +105,12 @@ StructuralContactElement :: computeContactForces(FloatArray &answer, TimeStep *t
 {
     
     FloatArray gap;
-    int ndofs = this->giveNumberOfDofManagers() * 3;
+    int ndofs = this->giveNumberOfDispDofs();
     answer.resize(ndofs);
     answer.zero();
     
     for ( GaussPoint *gp : *this->integrationRule ) {
-        //this->performCPP(gp, tStep);
+        
         this->giveContactPair()->performCPP(gp, tStep);
         FloatArray lCoords = *gp->giveNaturalCoordinates();
         
@@ -122,7 +126,7 @@ StructuralContactElement :: computeContactForces(FloatArray &answer, TimeStep *t
             FloatMatrix N, globalSys;
             this->computeNmatrixAt(lCoords, N);
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-            t.rotatedWith(globalSys, 't');                     // transform to global system
+            t.rotatedWith(globalSys, 'n');                     // transform to global system
             double dA = this->computeCurrentAreaAround(gp, tStep);
             answer.plusProduct(N, t, dA);
         }
@@ -133,16 +137,13 @@ StructuralContactElement :: computeContactForces(FloatArray &answer, TimeStep *t
 void
 StructuralContactElement :: computeContactTangent(FloatMatrix &answer, CharType type, TimeStep *tStep)
 {
-    int ndofs = this->giveNumberOfDofManagers() * 3;
+    int ndofs = this->giveNumberOfDispDofs();
     answer.resize(ndofs, ndofs);
     answer.zero();
     
     for ( GaussPoint *gp : *this->integrationRule ) {
   
-        //this->performCPP(gp, tStep);
         FloatArray lCoords = *gp->giveNaturalCoordinates();
-        FloatArray gap;
-
         if ( this->isInContact() ) {
             // D( delta(g) * t ) = delta(g) * D(t) + t * Delta( delta(g) ) = 1 + 2
           
@@ -156,7 +157,7 @@ StructuralContactElement :: computeContactTangent(FloatMatrix &answer, CharType 
             
             FloatMatrix globalSys, DN;
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-            D.rotatedWith(globalSys, 't');                   // transform to global system
+            D.rotatedWith(globalSys, 'n');                   // transform to global system
             DN.beProductOf(D,N);
             double dA = this->computeCurrentAreaAround(gp, tStep);
             answer.plusProductUnsym(N, DN, dA);  
@@ -243,6 +244,14 @@ StructuralContactElement :: computeCurrentTransformationMatrixAt(const FloatArra
 }
 
 
+int
+StructuralContactElement :: giveNumberOfDispDofs() 
+{ 
+    return 3 * (this->giveContactPair()->giveNumberOfMasterNodes() + this->giveContactPair()->giveNumberOfSlaveNodes() );
+}
+
+
+
 
 
 
@@ -263,7 +272,7 @@ StructuralContactElementLagrange :: StructuralContactElementLagrange(int num, Do
 void
 StructuralContactElementLagrange :: computeContactTractionAt(GaussPoint *gp, FloatArray &t, FloatArray &gap, TimeStep *tStep)
 {
-    // First evaluate constitutive model
+    // Evaluates the contact traction vector, the gap should be in local system
     // TODO but g_N->0 => t_N = 0 => t_T = 0
     StructuralInterfaceMaterial *mat = static_cast < StructuralInterfaceMaterial *> (this->giveContactMaterial() );
     mat->giveEngTraction_3d(t, gp, gap, tStep);
@@ -305,7 +314,7 @@ StructuralContactElementLagrange :: computeContactForces(FloatArray &answer, Tim
 {
     
     FloatArray gap, temp;
-    int numDispDofs = this->giveNumberOfDofManagers() * 3;
+    int numDispDofs = this->giveNumberOfDispDofs();
     int ndofs = numDispDofs + this->integrationRule[0].giveNumberOfIntegrationPoints();
     
     answer.resize(ndofs);
@@ -319,7 +328,7 @@ StructuralContactElementLagrange :: computeContactForces(FloatArray &answer, Tim
             continue;  
         }
         
-        this->computeGap(gap, lCoords, tStep); 
+        this->computeGap(gap, lCoords, tStep); // local system
         if ( this->isInContact() ) {
             FloatArray t;
             this->computeContactTractionAt(gp, t, gap, tStep); // local system
@@ -327,7 +336,7 @@ StructuralContactElementLagrange :: computeContactForces(FloatArray &answer, Tim
             FloatMatrix N, globalSys;
             this->computeNmatrixAt(lCoords, N);
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-            t.rotatedWith(globalSys, 't');                     // transform to global system
+            t.rotatedWith(globalSys, 'n');                     // transform to global system
             double dA = this->computeCurrentAreaAround(gp, tStep);
             temp.plusProduct(N, t, dA);
             
@@ -350,7 +359,7 @@ StructuralContactElementLagrange :: computeContactTangent(FloatMatrix &answer, C
 {
 
     
-    int numDispDofs = this->giveNumberOfDofManagers() * 3;
+    int numDispDofs = this->giveNumberOfDispDofs();
     int ndofs = numDispDofs + this->integrationRule[0].giveNumberOfIntegrationPoints();
         
     answer.resize(ndofs, ndofs);
@@ -377,7 +386,7 @@ StructuralContactElementLagrange :: computeContactTangent(FloatMatrix &answer, C
             
             
             this->computeCurrentTransformationMatrixAt( lCoords, globalSys, tStep );
-            D.rotatedWith(globalSys, 't');                   // transform to global system
+            D.rotatedWith(globalSys, 'n');                   // transform to global system
             DN.beProductOf(D,N);
             double dA = this->computeCurrentAreaAround(gp, tStep);
             temp.plusProductUnsym(N, DN, dA);  

@@ -72,6 +72,7 @@ public:
     virtual ~StructuralContactElement(){};
     virtual int instanciateYourself(DataReader *dr);
     virtual void setupIntegrationPoints() = 0;
+    virtual int giveNumberOfDispDofs();
     
     virtual ContactPair *giveContactPair() { return cPair; };
 

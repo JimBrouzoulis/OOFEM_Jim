@@ -137,16 +137,17 @@ ContactPair :: performCPP(GaussPoint *gp, TimeStep *tStep)
     FloatArray x, xibar;
     this->giveCurrentCoordsArray(x, tStep);
    
-    this->computeCPP( xibar, x );   
+    this->computeCPP( xibar, x, tStep );   
     gp->setNaturalCoordinates( xibar );
+
 }  
   
-  
+
 void
 ContactPair :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep)
 {
     // Computes the gap vector from the CCP (closest point projection) of 
-    // the slave node onto the master edge.
+    // the slave node onto the master edge. This is in global coords.
     // gap = xs(xibar) - xm(xibar) = [N_slave, -N_master] * xhat 
     FloatArray x;
     FloatMatrix N;
@@ -155,6 +156,58 @@ ContactPair :: computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tSt
     answer.beProductOf(N, x);
 }  
   
+  
+  
+void
+ContactPair :: computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tStep)  
+{
+    // should be a general implementation to the CPP problem
+    // \Delta \xi = -inv(F'')*F' at iteration k
+    // F = 0.5 (xs-xm_k).(xs-xm_k)  
+    // F'  = dF/dxi_i = -[ g1.(xs-xm_k), g2.(xs-xm_k)] with g1 = d(xm_k)/dxi_1 etc.
+    // F'' = [ g1.g1 -g11.(xs-xm_k)  g1.g2 -g12.(xs-xm_k)
+    //         g2.g1 -g21.(xs-xm_k)  g2.g2 -g22.(xs-xm_k) ] with g12 = d²(xm_k)/(dxi_1 dxi_2) etc.
+
+    FloatArray xhat, xi;
+    FloatMatrix N;
+    this->giveCurrentCoordsArray(xhat, tStep);
+    FloatArray gap, g1, g2, dxi;
+    FloatArray Fprime;
+    FloatMatrix Fbis, metric;
+    
+    const double tol = 1.0e-4;
+    xi = {0.0, 0.0}; // initial guess
+    int maxiter = 50;
+    int iter;
+    for( iter = 1; iter <= maxiter; iter++ ) {
+    
+        this->computeNmatrixAt(xi, N);
+        gap.beProductOf(N, xhat);
+        this->computeCovarTangentVectorsAt(xi, g1, g2, tStep);
+      
+        Fprime = { -g1.dotProduct(gap), - g2.dotProduct(gap) };
+        if ( Fprime.computeNorm() / ( g1.computeNorm() + g2.computeNorm() ) < tol ) {
+            answer = xi;
+            
+            if( xi.at(1)<-1.0 || xi.at(1)>1.0  ||  xi.at(2)<-1.0 || xi.at(2)>1.0 ) { //TODO not ok for certain el. like triangles
+                xi.clear();
+            }
+            //xi.printYourself();
+            return;
+        }
+        // compute metric tensor
+        metric = { { g1.dotProduct(g1), g2.dotProduct(g1) }, { g1.dotProduct(g2), g2.dotProduct(g2)} }; // symmetric
+        Fbis = metric; // TODO add additional higher order terms
+        
+        Fbis.solveForRhs(Fprime, dxi);
+        xi.subtract(dxi);
+    }
+    if (iter == maxiter) {
+        answer.clear();
+    }
+    
+
+}
   
 //--------------------------------  
   
@@ -166,7 +219,6 @@ ContactPairNode2Edge :: ContactPairNode2Edge(Element *el, int edge, Node *slave)
     this->masterElementEdgeNum = edge;
     this->slaveNodes.resize(1);
     this->slaveNodes[0] = slave;
-    //this->xibar = -2.0; // outside element
 }
     
 
@@ -177,8 +229,8 @@ ContactPairNode2Edge :: instanciateYourself(DataReader *dr)
     IntArray edgeNodes, globalNodeArray;
     FEInterpolation2d *interp = static_cast< FEInterpolation2d* > ( this->masterElement->giveInterpolation() );
     IntArray elNodes = this->masterElement->giveDofManArray(); 
-    interp->computeEdgeMapping(edgeNodes, elNodes, this->masterElementEdgeNum );
-    
+    interp->computeLocalEdgeMapping(edgeNodes, this->masterElementEdgeNum);
+
     this->masterNodes.resize( edgeNodes.giveSize() );
     for ( int j = 1; j<= edgeNodes.giveSize(); j++ ) {        
         masterNodes[j-1] = this->masterElement->giveNode( edgeNodes.at(j) );
@@ -218,18 +270,29 @@ ContactPairNode2Edge :: computeCovarTangentVectorsAt(const FloatArray &lCoords, 
      g1.resize(3); g1.zero();
      FloatArray x;
      for ( int i = 1; i <= dNdxi.giveSize(); i++ ) {
-         x = *this->masterNodes[i-1]->giveCoordinates();
+         this->giveMasterNode(i)->giveUpdatedCoordinates(x, tStep);
+         //x =*this->giveMasterNode(i)->giveCoordinates();
          g1.add( dNdxi.at(i), x);
      }
+     //g1.printYourself("g1");
      StructuralCrossSection *cs = static_cast< StructuralCrossSection* > (  this->masterElement->giveCrossSection() );
      g2 = {0.0, 0.0, cs->give(CS_Thickness, NULL) }; // The second one point is in the out of plane dir. with t as length
 }
 
-
+void
+ContactPairNode2Edge :: computeCovarTangentVectorGradientsAt(const FloatArray &lCoords, FloatArray &g11, FloatArray &g12, FloatArray &g22, TimeStep *tStep)
+{
+  
+  
+  
+}
 
 void
-ContactPairNode2Edge :: computeCPP(FloatArray &answer, const FloatArray &x)
+ContactPairNode2Edge :: computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tStep)
 {
+    ContactPair :: computeCPP(answer, x, tStep);
+    return;
+    
     FloatArray xs  = { x.at(1), x.at(2), x.at(3) };
     FloatArray xm1 = { x.at(4), x.at(5), x.at(6) };
     FloatArray xm2 = { x.at(7), x.at(8), x.at(9) };
@@ -246,7 +309,7 @@ ContactPairNode2Edge :: computeCPP(FloatArray &answer, const FloatArray &x)
     } else {
         answer = {}; // outside
     }
-      
+      //answer.printYourself("xi ");
 }
 
 void
@@ -259,14 +322,14 @@ ContactPairNode2Edge :: computeLinearizationOfCPP(const FloatArray &lCoords, Flo
     FloatArray x0, x, xi0, xi, dxi;
     this->giveCurrentCoordsArray(x0, tStep);
     //x0 = xs; x0.append(xm1); x0.append(xm2);
-    this->computeCPP( xi0, x0 );
+    this->computeCPP( xi0, x0, tStep );
   
     answer.resize( 1, x0.giveSize() );
     const double eps = 1.0e-8;
     for ( int i = 1; i <= x0.giveSize(); i++ ) {
         x = x0;
         x.at(i) += eps;
-        this->computeCPP( xi, x );
+        this->computeCPP( xi, x, tStep );
         dxi.beDifferenceOf( xi, xi0 );
         answer.addSubVectorCol( dxi, 1, i );
     }
@@ -336,7 +399,9 @@ void
 ContactPairNode2Node :: computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep)
 {
  
-    // compute normal as direction vector from master node to slave node
+    // Compute normal as direction vector from master node to slave node
+    // It has to be the initial coordinates since the normal will be undefined 
+    // when in contact (and flip if penetration)
     FloatArray xs, xm;
     xs = *this->giveSlaveNode(1)->giveCoordinates();
     xm = *this->giveMasterNode(1)->giveCoordinates();

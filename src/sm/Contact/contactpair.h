@@ -67,12 +67,15 @@ public:
     
     FloatArray &giveCPPcoords(const int num) { return this->CPPpoints[num-1]; };
     virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep){};
+    virtual void computeCovarTangentVectorGradientsAt(const FloatArray &lCoords, FloatArray &g11, FloatArray &g12, FloatArray &g22, TimeStep *tStep){};
+    
     virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
     virtual void computeCurrentTransformationMatrixAt(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
     virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep);
     
     virtual void performCPP(GaussPoint *gp, TimeStep *tStep);
-    virtual void computeCPP(FloatArray &answer, const FloatArray &x){};
+    //virtual void computeCPP(FloatArray &answer, const FloatArray &x){};
+    virtual void computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tStep);
     
     virtual void computeGap(FloatArray &answer, FloatArray &lCoords, TimeStep *tStep);
     
@@ -111,8 +114,10 @@ public:
     
     virtual void computeBmatrixAt(const FloatArray &lCoords, const FloatArray &traction, FloatMatrix &answer, TimeStep *tStep);
     virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
+    virtual void computeCovarTangentVectorGradientsAt(const FloatArray &lCoords, FloatArray &g11, FloatArray &g12, FloatArray &g22, TimeStep *tStep);
     
-    virtual void computeCPP(FloatArray &answer, const FloatArray &x);
+    virtual void computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tStep);
+    
     virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
     
 
@@ -148,7 +153,7 @@ public:
     virtual void computeCovarTangentVectorsAt(const FloatArray &lCoords, FloatArray &g1, FloatArray &g2, TimeStep *tStep);
     virtual void computeCurrentNormalAt(const FloatArray &lCoords, FloatArray &normal, TimeStep *tStep);
     
-    virtual void computeCPP(FloatArray &answer, const FloatArray &x) { answer = {0.0, 0.0, 0.0}; };
+    virtual void computeCPP(FloatArray &answer, const FloatArray &x, TimeStep *tStep) { answer = {0.0, 0.0}; };
     //virtual void computeLinearizationOfCPP(const FloatArray &lCoords, FloatMatrix &answer, TimeStep *tStep);
   
     virtual double computeCurrentAreaAround(GaussPoint *gp, TimeStep *tStep) {return 1.0; }; //TODO

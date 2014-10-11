@@ -111,6 +111,16 @@ public:
     virtual void edgeEvaldNdxi(FloatArray &answer, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo)
     { OOFEM_ERROR("Not implemented for the current interpolator"); };                              
     /**
+     * Evaluates the matrix of second order derivatives of edge interpolation functions (shape functions) at given point.
+     * These derivatives are in the parent domain.
+     * @param answer Contains resulting array of derivatives, the member at position (i,xx) contains value of @f$ \frac{\mathrm{d}^2 N_i}{\mathrm{d}\xi_j^2} @f$.
+     * @param iedge Determines the edge number.
+     * @param lcoords Array containing (local) coordinates.
+     * @param cellgeo Underlying cell geometry.
+     */
+    virtual void edgeEvald2Ndxi2(FloatArray &answer, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo)
+    { OOFEM_ERROR("Not implemented for the current interpolator"); };                              
+    /**
      * Evaluates edge global coordinates from given local ones.
      * These derivatives are in global coordinate system (where the nodal coordinates are defined).
      * @param answer Contains resulting global coordinates.

@@ -83,6 +83,7 @@ public:
                                   const FloatArray &lcoords, const FEICellGeometry &cellgeo);
     virtual double edgeEvalNormal(FloatArray &normal, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo);
     virtual void edgeEvaldNdxi(FloatArray &answer, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo);
+    virtual void edgeEvald2Ndxi2(FloatArray &answer, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo);
     virtual double evalNXIntegral(int iEdge, const FEICellGeometry &cellgeo);
 
     virtual IntegrationRule *giveIntegrationRule(int order);

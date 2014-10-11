@@ -317,6 +317,14 @@ FEI2dQuadQuad :: edgeEvaldNdxi(FloatArray &answer, int iedge, const FloatArray &
   
 }
 
+void
+FEI2dQuadQuad :: edgeEvald2Ndxi2(FloatArray &answer, int iedge, const FloatArray &lcoords, const FEICellGeometry &cellgeo)
+{
+    // Evaluates d^2N_i/dxi^2
+    answer = { 1.0, 1.0, -2.0 };
+    
+  
+}
 
 void
 FEI2dQuadQuad :: giveJacobianMatrixAt(FloatMatrix &jacobianMatrix, const FloatArray &lcoords, const FEICellGeometry &cellgeo)

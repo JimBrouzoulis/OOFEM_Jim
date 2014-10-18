@@ -80,6 +80,7 @@ set (sm_element
     Elements/PlaneStress/basicelement.C
     Elements/structural2delement.C
     Elements/structural3delement.C
+    Elements/Shells/solidshell.C
     #qplanstrssphf.C
     )
 

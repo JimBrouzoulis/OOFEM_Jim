@@ -33,19 +33,23 @@
  */
 
 #include "contact/contactmanager.h"
-#include "Contact/contactdefinition.h"
-#include "Contact/contactelement.h"
+#include "contact/contactdefinition.h"
+#include "contact/contactelement.h"
 #include "intarray.h"
 #include "domain.h"
 #include "floatmatrix.h"
 #include "sparsemtrx.h"
+#include "masterdof.h"
+#include "classfactory.h"
 
 namespace oofem {
+REGISTER_ContactDefinition(ContactDefinition)
 
 
 ContactDefinition :: ContactDefinition(ContactManager *cMan)
 {
     this->cMan = cMan;
+    this->numberOfConstraintEq = 0;
 }
     /// Destructor.
 ContactDefinition :: ~ContactDefinition()
@@ -55,42 +59,56 @@ ContactDefinition :: ~ContactDefinition()
 
 
 
-IRResultType
-ContactDefinition :: initializeFrom(InputRecord *ir)
-{
-  
-  // Example of node to node contact with two elements
-  
-    /*  4 - 3  <->  8 - 7
-     *  |   |       |   |
-     *  1 - 2  <->  5 - 6
-     */
-
-    Domain *domain = this->cMan->giveDomain();
-    
-    IntArray masterNodes = {2, 3};
-    IntArray slaveNodes  = {5, 8};
-    this->masterElementList.resize( masterNodes.giveSize() );
-    for( int i = 1; i<= masterNodes.giveSize(); i++ ) {
-
-        ContactElement *master = new Node2NodeContactL( domain->giveDofManager(masterNodes.at(i)),
-                                                       domain->giveDofManager(slaveNodes.at(i)) );
-        this->masterElementList[i-1] = std :: move(master);
-    }
-      
-    return IRRT_OK;
-}
-
-
 int
 ContactDefinition :: instanciateYourself(DataReader *dr)
 {
   
     for ( ContactElement *cEl : this->masterElementList ) { 
         cEl->instanciateYourself(dr);
+        cEl->setupIntegrationPoints();
     }
     
   return 1;
+}
+
+
+
+void 
+ContactDefinition :: createContactDofs()
+{
+    // Creates new dofs due associated with the contact (Lagrange multipliers) and appends them to the dof managers
+// Creates new dofs due associated with the contact (Lagrange multipliers) and appends them to the dof managers
+
+    //TODO This is a bit ugly, find a better solution than asking the contact el
+    if ( int numDofs = this->giveNumberOfConstraintEqToAdd() ) {
+        
+        // get an array with dof ids' to append to 
+        IntArray dofIdArray(numDofs), dofMans;
+        for ( int i = 1; i <= numDofs; i++ ) {
+            dofIdArray.at(i) = this->cMan->giveDomain()->giveNextFreeDofID();
+        }
+        
+        
+        
+        for ( ContactElement *cEl : this->masterElementList ) { 
+            
+            cEl->giveDofManagersToAppendTo(dofMans);
+            if ( dofMans.giveSize() ) { // if the contact element adds extra dofs, store them. Maybe just store in cDef?
+                cEl->setDofIdArray(dofIdArray);
+            }
+            
+            for ( int i = 1; i <= dofMans.giveSize(); i++ ) {
+                DofManager *dMan = this->cMan->giveDomain()->giveDofManager(dofMans.at(i));
+                for ( auto &dofid: dofIdArray ) {
+                    if ( !dMan->hasDofID( ( DofIDItem ) ( dofid ) ) ) {
+                    
+                        dMan->appendDof( new MasterDof( dMan, ( DofIDItem ) dofid ) );
+                    }
+                }
+              
+            }
+        }  
+    }
 }
 
 
@@ -102,13 +120,16 @@ ContactDefinition :: computeContactForces(FloatArray &answer, TimeStep *tStep, C
     FloatArray Fc;
     IntArray locArray;
     
+    // TODO ask masters that are potentially in contact and not everyone
     for ( ContactElement *master : this->masterElementList ) {
-          
+        
+        // These acts as external forces so move them to the lhs
         master->computeContactForces(Fc, tStep, type, mode, s, domain, eNorms);
-        if ( master->isInContact() ) {
-          master->giveLocationArray(locArray, s);
-          Fc.negated();
-          answer.assemble(Fc, locArray);
+        Fc.negated();
+        
+        if ( Fc.giveSize() ) {
+            master->giveLocationArray(locArray, s);
+            answer.assemble(Fc, locArray);
         
           if ( eNorms ) {
               eNorms->assembleSquared( Fc, locArray );
@@ -130,16 +151,17 @@ ContactDefinition :: computeContactTangent(SparseMtrx *answer, TimeStep *tStep,
     
     for ( ContactElement *master : this->masterElementList ) {
         
-        if ( master->isInContact() ) {
+        //if ( master->isInContact() ) { // tangent becomes singular with this
             //printf("node in contact: computeContactTangent\n\n");
             master->computeContactTangent(Kc, type, tStep);
-            
+            // do this in contact element?
+            Kc.negated(); // should be negated!
            
             master->giveLocationArray(locArrayR, r_s);
             master->giveLocationArray(locArrayC, c_s);
-
+            
             answer->assemble(locArrayR, locArrayC, Kc);
-        }
+        //}
     }
     
   

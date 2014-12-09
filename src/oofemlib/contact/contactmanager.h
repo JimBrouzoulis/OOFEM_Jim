@@ -42,14 +42,10 @@
 #include "datareader.h"
 #include "inputrecord.h"
 
-
-
-#include <vector>
-//#include <memory>
-
 ///@name Input fields for _IFT_ContactManager
 //@{
 #define _IFT_ContactManager_Name "contactmanager"
+#define _IFT_ContactManager_NumberOfContactDefinitions "numcontactdef"
 
 //@}
 
@@ -68,37 +64,25 @@ class OOFEM_EXPORT ContactManager
 {
 protected:
     Domain *domain;
-    /// Contact definition list.
-
 
 private:
     std :: vector< ContactDefinition *> contactDefinitionList;
 
-    //int numberOfContactDefinitions;
-
-
-
 public:
-
 
     /// Constructor.
     ContactManager(Domain *domain);
     /// Destructor.
     virtual ~ContactManager();
 
-    ContactManager(const ContactManager &) = delete;
-
-    ContactManager & operator=(const ContactManager &) = delete;
     
-
-    //void createEnrichedDofs();
-
+    void createContactDofs();
+    
     /// Initializes receiver according to object description stored in input record.
     virtual IRResultType initializeFrom(InputRecord *ir);
 
     virtual int instanciateYourself(DataReader *dr);
     virtual const char *giveClassName() const { return "ContactManager"; }
-    //virtual const char *giveInputRecordName() const { return _IFT_ContactManager_Name; }
 
     Domain *giveDomain() { return this->domain; }
     int numberOfContactDefinitions;
@@ -112,10 +96,6 @@ public:
 
     void assembleTangentFromContacts(SparseMtrx *answer, TimeStep *tStep,
                           CharType type, const UnknownNumberingScheme &r_s, const UnknownNumberingScheme &c_s);
-
-    //virtual void giveLocationArrays(std :: vector< IntArray > &rows, std :: vector< IntArray > &cols, CharType type,
-    //                                const UnknownNumberingScheme &r_s, const UnknownNumberingScheme &c_s) { }
-    
 
 };
 

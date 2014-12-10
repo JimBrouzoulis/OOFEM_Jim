@@ -80,8 +80,8 @@ protected:
     
     double evaluateLevelSet(const FloatArray &lCoords, EnrichmentItem *ei);
     double edgeEvaluateLevelSet(const FloatArray &lCoords, EnrichmentItem *ei, const int edge);
-    double evaluateHeavisideGamma(double xi, ShellCrack *ei);
-    double evaluateHeavisideGamma(double xi, Delamination *ei);
+    double evaluateHeavisideXi(double xi, ShellCrack *ei);
+    double evaluateHeavisideXi(double xi, Delamination *ei);
     double evaluateCutHeaviside(const double xi, const double xiBottom, const double xiTop) const;
     void computeCohesiveForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVec, FloatArray &solVecD, EnrichmentItem *ei, EnrichmentItem *coupledToEi);
     
@@ -96,14 +96,16 @@ protected:
     
     double EvaluateEnrFuncInDofMan(int dofManNum, EnrichmentItem *ei);
     void computeEnrichedBmatrixAt(FloatArray &lCoords, FloatMatrix &answer, EnrichmentItem *ei);
-    void computeEnrichedNmatrixAt(const FloatArray &iLocCoords, FloatMatrix &answer, EnrichmentItem *ei);
+    void computeEnrichedNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer, EnrichmentItem *ei);
+    void computeCohesiveNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer, EnrichmentItem *ei);
+    
     void edgeComputeEnrichedNmatrixAt(FloatArray &lCoords, FloatMatrix &answer, EnrichmentItem *ei, const int edge);
     void edgeComputeEnrichedBmatrixAt(FloatArray &lcoords, FloatMatrix &answer, EnrichmentItem *ei, const int edge);
     virtual void edgeGiveUpdatedSolutionVector(FloatArray &answer, const int iedge, TimeStep *tStep);
 
     void edgeEvalEnrCovarBaseVectorsAt(FloatArray &lCoords, const int iedge, FloatMatrix &gcov, TimeStep *tStep, EnrichmentItem *ei);
     void computeCohesiveTangent(FloatMatrix &answer, TimeStep *tStep);
-    void computeCohesiveTangentAt(FloatMatrix &answer, TimeStep *tStep, Delamination *dei, EnrichmentItem *couplesToEi);
+    void computeCohesiveTangentAt(FloatMatrix &answer, TimeStep *tStep, Delamination *dei, EnrichmentItem *ei_j, EnrichmentItem *ei_k);
 
     void computePressureTangentMatrixDis(FloatMatrix &KCC, FloatMatrix &KCD, FloatMatrix &KDD, IntegrationPoint *ip, Load *load, const int iSurf, TimeStep *tStep);
 
@@ -171,6 +173,7 @@ public:
     std :: vector< IntegrationRule * > czIntegrationRulesArray;
     private:
     void jump(FloatMatrix lambda, FloatArray deltaUnknowns);
+    void Fco(FloatMatrix lambdaN, FloatArray T);
 };
 } // end namespace oofem
 #endif

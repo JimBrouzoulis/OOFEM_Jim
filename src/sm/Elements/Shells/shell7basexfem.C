@@ -407,16 +407,16 @@ Shell7BaseXFEM :: giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, 
 
             // Cohesive zone model
             if ( this->hasCohesiveZone(i) ) {
-                // this is because we may have coupling between delam and cracks =(
+                // If there are only delaminations present the we only have one contribution per ei.
+                // If there are intralmainar cracks then we get several potential extra terms. 
+                // Therefore we must go through them all and check.
+                
                 for ( int j = 1; j <= this->xMan->giveNumberOfEnrichmentItems(); j++ ) { 
-                    this->computeCohesiveForces( fCZ, tStep, solVec, solVecD, this->xMan->giveEnrichmentItem(i), this->xMan->giveEnrichmentItem(j));
+                    this->computeCohesiveForces( fCZ, tStep, solVec, solVecD, ei, this->xMan->giveEnrichmentItem(j));
+                    
                     tempRed.beSubArrayOf(fCZ, this->activeDofsArrays[j-1]);
                     answer.assemble(tempRed, this->orderingArrays[j-1]);
-                    // Add equal forces on the minus side except for the first delamination -> one discontinuity term only
-                    if ( i != 1 ) {  
-                        tempRed.negated(); // acts in the opposite direction
-                        answer.assemble(tempRed, this->orderingArrays[j-2]); 
-                    }
+                    
                 }
             }
         }
@@ -543,7 +543,7 @@ Shell7BaseXFEM :: edgeEvaluateLevelSet(const FloatArray &lCoords, EnrichmentItem
 
 
 double 
-Shell7BaseXFEM :: evaluateHeavisideGamma(double xi, ShellCrack *ei)
+Shell7BaseXFEM :: evaluateHeavisideXi(double xi, ShellCrack *ei)
 {
     // Evaluates the "cut" Heaviside for a ShellCrack
     double xiBottom = ei->xiBottom;
@@ -554,7 +554,7 @@ Shell7BaseXFEM :: evaluateHeavisideGamma(double xi, ShellCrack *ei)
 }
 
 double 
-Shell7BaseXFEM :: evaluateHeavisideGamma(double xi, Delamination *ei)
+Shell7BaseXFEM :: evaluateHeavisideXi(double xi, Delamination *ei)
 {
     // Evaluates the "cut" Heaviside for a Delamination
     double xiBottom = ei->giveDelamXiCoord();
@@ -616,15 +616,15 @@ Shell7BaseXFEM :: giveMaxCZDamages(FloatArray &answer, TimeStep *tStep)
 void
 Shell7BaseXFEM :: computeCohesiveForces(FloatArray &answer, TimeStep *tStep, FloatArray &solVecC, FloatArray &solVecD, EnrichmentItem *ei, EnrichmentItem *coupledToEi)
 {
-    //Computes the cohesive nodal forces for a given interface
+    //Computes the cohesive nodal forces for a given delamination interface
 
     Delamination *dei =  dynamic_cast< Delamination * >( ei );
-    if ( dei ) { // For now only add cz for delaminations
+    if ( dei ) { // Only add cz for delaminations
         FloatArray answerTemp, lCoords(3);
         answerTemp.resize(Shell7Base :: giveNumberOfDofs() );
         answerTemp.zero();
 
-        FloatMatrix B, NEnr, BEnr, F;  
+        FloatMatrix B, Ncoh, BEnr, temp, F;  
         int delamNum = dei->giveNumber();
         IntegrationRule *iRuleL = czIntegrationRulesArray [ delamNum - 1 ]; ///TODO switch to giveIntefaceNum?
 
@@ -632,7 +632,7 @@ Shell7BaseXFEM :: computeCohesiveForces(FloatArray &answer, TimeStep *tStep, Flo
             (this->layeredCS->giveInterfaceMaterial(delamNum) );
 
         FloatMatrix lambdaD, lambdaN, Q;
-        FloatArray Fp, T, nCov, jump, unknowns, genEpsC, genEpsD;
+        FloatArray Fcoh, T, nCov, jump, unknowns, genEpsC, genEpsD;
         
         for ( GaussPoint *gp: *iRuleL ) {
             double xi = dei->giveDelamXiCoord();
@@ -640,13 +640,13 @@ Shell7BaseXFEM :: computeCohesiveForces(FloatArray &answer, TimeStep *tStep, Flo
             lCoords.at(2) = gp->giveNaturalCoordinate(2);
             lCoords.at(3) = xi;
             
-            this->computeEnrichedBmatrixAt(lCoords, B, NULL);
-          
+            this->computeBmatrixAt(lCoords, B);
+            this->computeCohesiveNmatrixAt(lCoords, Ncoh, coupledToEi);
+            
             // Compute jump vector
             this->computeInterfaceJumpAt(dei->giveDelamInterfaceNum(), lCoords, tStep, jump); // -> numerical tol. issue -> normal jump = 1e-10  
     
             genEpsC.beProductOf(B, solVecC);
-            //genEpsC.beProductOf(BEnr, solVecC); //TODO BUG old, incorrect version. Need to verify that the results are ok now
             this->computeFAt(lCoords, F, genEpsC, tStep);
 
             // Transform xd and F to a local coord system
@@ -659,17 +659,13 @@ Shell7BaseXFEM :: computeCohesiveForces(FloatArray &answer, TimeStep *tStep, Flo
             intMat->giveFirstPKTraction_3d(T, gp, jump, F, tStep);
             
             T.rotatedWith(Q,'t'); // transform back to global coord system
-            
-            // to make sure N is evaluated on the other side of the interface. If it is not enriched then N=0
-            lCoords.at(3) += 1.0e-7; 
-            this->computeEnrichedNmatrixAt(lCoords, NEnr, coupledToEi);
 
             double zeta = xi * this->layeredCS->computeIntegralThick() * 0.5;       
             this->computeLambdaNMatrixDis(lambdaD,zeta);
-            lambdaN.beProductOf(lambdaD, NEnr);
-            Fp.beTProductOf(lambdaN, T);
+            lambdaN.beProductOf(lambdaD, Ncoh);
+            Fcoh.beTProductOf(lambdaN, T);
             double dA = this->computeAreaAround(gp,xi);
-            answerTemp.add(dA,Fp);
+            answerTemp.add(dA, Fcoh);
         }
 
         int ndofs = Shell7Base :: giveNumberOfDofs();
@@ -705,47 +701,66 @@ void
 Shell7BaseXFEM :: computeCohesiveTangent(FloatMatrix &answer, TimeStep *tStep)
 {
     //Computes the cohesive tangent forces for a given interface
+
+    /* This tangent should be added for each delamination interface k
+     * 
+     * Kcoh_k = [0    0    0 ... 0    0    ...    0
+     *           0  K_kk   0 ... 0  K_kc1  ... K_kcn 
+     *           0    .                         
+     *           0  K_c1k  0 ... 0  K_c1c1 ... K_c1cn 
+     *           0 
+     *           0  K_cnk  0 ... 0  K_cnc1 ... K_cncn ]
+     * 
+     */  
     FloatMatrix temp;
     int ndofs = this->giveNumberOfDofs();
     answer.resize(ndofs, ndofs);
     answer.zero();
 
-    // Disccontinuous part (continuous part does not contribute)
     FloatMatrix tempRed, tempRedT;
     for ( int i = 1; i <= this->xMan->giveNumberOfEnrichmentItems(); i++ ) {
 
+        // dei is the current delamination where the material tangent d(trac)/d(jump) is evaluated
         Delamination *dei =  dynamic_cast< Delamination * >( this->xMan->giveEnrichmentItem(i) );
         if ( dei != NULL && dei->isElementEnriched(this) && this->hasCohesiveZone(i) ) {
             
-            for ( int j = i; j <= this->xMan->giveNumberOfEnrichmentItems(); j++ ) {
-                EnrichmentItem *couplesToEi = this->xMan->giveEnrichmentItem(j);
-                this->computeCohesiveTangentAt(temp, tStep, dei, couplesToEi);
+          
+            for ( int j = 1; j <= this->xMan->giveNumberOfEnrichmentItems(); j++ ) {
+                for ( int k = j; k <= this->xMan->giveNumberOfEnrichmentItems(); k++ ) { // upper triangular part
+                  // Coupling enrichments
+                  EnrichmentItem *ei_j = this->xMan->giveEnrichmentItem(j); 
+                  EnrichmentItem *ei_k = this->xMan->giveEnrichmentItem(k);
+                  this->computeCohesiveTangentAt(temp, tStep, dei, ei_j, ei_k);
 
-                // Assemble part correpsonding to active dofs
-                tempRed.beSubMatrixOf(temp, this->activeDofsArrays[dei->giveNumber()-1], this->activeDofsArrays[couplesToEi->giveNumber()-1]);
-                answer.assemble(tempRed, this->orderingArrays[dei->giveNumber()-1], this->orderingArrays[couplesToEi->giveNumber()-1]);	    
-                // Add equal (but negative) tangent corresponding to the forces on the minus side
-                // except for the first delamination -> one discontinuity term only
-                if ( i != 1 ) {  
-                    tempRed.negated(); // acts in the opposite direction
-                    answer.assemble(tempRed, this->orderingArrays[dei->giveNumber()], this->orderingArrays[couplesToEi->giveNumber()]);
-                }   
+                  // Assemble part correpsonding to active dofs
+                  tempRed.beSubMatrixOf(temp, this->activeDofsArrays[ei_j->giveNumber()-1], this->activeDofsArrays[ei_k->giveNumber()-1]);
+                  answer.assemble(tempRed, this->orderingArrays[ei_j->giveNumber()-1], this->orderingArrays[ei_k->giveNumber()-1]);	
+                  
+                  if( j != k ) { // add off diagonal contributions
+                    tempRedT.beTranspositionOf(tempRed);
+                    answer.assemble(tempRedT, this->orderingArrays[ei_k->giveNumber()-1], this->orderingArrays[ei_j->giveNumber()-1]);       
+                  }
+                }
             }
+            
             
         }
     }
-    //TODO It is not symmetric due to dT/dJ not being symmetric
-   answer.symmetrized();
+   
 }
 
 
 
 void
-Shell7BaseXFEM :: computeCohesiveTangentAt(FloatMatrix &answer, TimeStep *tStep, Delamination *dei, EnrichmentItem *couplesToEi)
+Shell7BaseXFEM :: computeCohesiveTangentAt(FloatMatrix &answer, TimeStep *tStep, Delamination *dei, EnrichmentItem *ei_j, EnrichmentItem *ei_k)
 {
-    //Computes the cohesive tangent for a given interface K_cz = N^t*lambda*t * dT/dj * lambda * N
+    /* Computes the cohesive tangent contribution (block matrix) for a given interface given two
+     * enrichment items (j,k) it (potentially) couples to.  
+     * K_cz = Ncoh_j^t*lambda*t * dT/dj * lambda * Ncoh_k
+     * 
+     */
     FloatArray lCoords(3);
-    FloatMatrix answerTemp, NDei, NCouple, lambda, K, temp, tangent;
+    FloatMatrix answerTemp, Ncoh_j, Ncoh_k, lambda, D, temp, tangent;
     int nDofs = Shell7Base :: giveNumberOfDofs();
     answerTemp.resize(nDofs, nDofs);
     answerTemp.zero();
@@ -760,22 +775,21 @@ Shell7BaseXFEM :: computeCohesiveTangentAt(FloatMatrix &answer, TimeStep *tStep,
     FloatMatrix Q;
     FloatArray nCov;
     for ( GaussPoint *gp: *iRuleL ) {
-        lCoords.at(1) = gp->giveNaturalCoordinate(1);
-        lCoords.at(2) = gp->giveNaturalCoordinate(2);
-        lCoords.at(3) = xi;
+        lCoords = { gp->giveNaturalCoordinate(1), gp->giveNaturalCoordinate(2), xi};
 
-        intMat->give3dStiffnessMatrix_dTdj(K, TangentStiffness, gp, tStep);
+        intMat->give3dStiffnessMatrix_dTdj(D, TangentStiffness, gp, tStep);
         this->evalInitialCovarNormalAt(nCov, lCoords);
         Q.beLocalCoordSys(nCov);
-        K.rotatedWith(Q,'t');   // rotate back to global coord system
+        D.rotatedWith(Q,'t');   // rotate back to global coord system
 
         double zeta = giveGlobalZcoord( lCoords);
         this->computeLambdaNMatrixDis( lambda, zeta );
-        this->computeEnrichedNmatrixAt(lCoords, NDei, dei);        
-        this->computeEnrichedNmatrixAt(lCoords, NCouple, couplesToEi);        
+        this->computeCohesiveNmatrixAt(lCoords, Ncoh_j, ei_j);        
+        this->computeCohesiveNmatrixAt(lCoords, Ncoh_k, ei_k); 
+        
         ///@todo Use N*lambda and then apply plusProductUnsym instead;
-        this->computeTripleProduct(temp, lambda, K, lambda); 
-        this->computeTripleProduct(tangent, NDei, temp, NCouple);
+        this->computeTripleProduct(temp, lambda, D, lambda); 
+        this->computeTripleProduct(tangent, Ncoh_j, temp, Ncoh_k);
         double dA = this->computeAreaAround(gp, xi);
         answerTemp.add(dA,tangent);
     }
@@ -787,7 +801,24 @@ Shell7BaseXFEM :: computeCohesiveTangentAt(FloatMatrix &answer, TimeStep *tStep,
 }
 
 
+void 
+Shell7BaseXFEM :: computeCohesiveNmatrixAt(const FloatArray &lCoords, FloatMatrix &answer, EnrichmentItem *ei)
+{
+    /* Returns the N-matrix associated with the variation of the jump over a delamination interface.
+     * Evaluate \delta jump -> jump = phi(+)-phi(-) = N(+)*a - N(-)*a = [N(+)-N(-)]*a = Ncoh*a
+      * where a is the solution vector for a given dicontinuity (ei)
+      * This should be correct for delaminations (only) as well N(-)=0
+      */
+    FloatMatrix N_minus_side;
+    FloatArray perturbedCoords = lCoords;
+    perturbedCoords.at(3) = lCoords.at(3) + 1.0e-9; // make sure we are on the plus side 
+    this->computeEnrichedNmatrixAt(perturbedCoords, answer, ei);
+    
+    perturbedCoords.at(3) = lCoords.at(3) - 1.0e-9; // make sure we are on the minus side 
+    this->computeEnrichedNmatrixAt(perturbedCoords, N_minus_side, ei);
+    answer.subtract(N_minus_side);
 
+}
 
 
 void 
@@ -892,7 +923,6 @@ Shell7BaseXFEM :: computeStiffnessMatrix(FloatMatrix &answer, MatResponseMode rM
 #if 1
     FloatMatrix Kcoh;
     this->computeCohesiveTangent(Kcoh, tStep);
-    //Kcoh.times(DISC_DOF_SCALE_FAC*DISC_DOF_SCALE_FAC);
     answer.add(Kcoh);
 
 #endif
@@ -1829,7 +1859,7 @@ Shell7BaseXFEM :: computeEnrichedBmatrixAt(FloatArray &lCoords, FloatMatrix &ans
         }
         
 
-        answer.times( this->evaluateHeavisideGamma(lCoords.at(3), static_cast< ShellCrack* >(ei)) ); 
+        answer.times( this->evaluateHeavisideXi(lCoords.at(3), static_cast< ShellCrack* >(ei)) ); 
         answer.times(DISC_DOF_SCALE_FAC);
 
     } else if ( ei && dynamic_cast< Delamination*>(ei) ){
@@ -1837,7 +1867,7 @@ Shell7BaseXFEM :: computeEnrichedBmatrixAt(FloatArray &lCoords, FloatMatrix &ans
         //std :: vector< double > efGP;
         //double levelSetGP = this->evaluateLevelSet(lCoords, ei);
         //ei->evaluateEnrFuncAt(efGP, lCoords, levelSetGP);
-        double fac = this->evaluateHeavisideGamma(lCoords.at(3), static_cast< Delamination* >(ei) );
+        double fac = this->evaluateHeavisideXi(lCoords.at(3), static_cast< Delamination* >(ei) );
         answer.times( fac * DISC_DOF_SCALE_FAC );
     } else {
         Shell7Base :: computeBmatrixAt(lCoords, answer);
@@ -1916,7 +1946,7 @@ Shell7BaseXFEM :: computeEnrichedNmatrixAt(const FloatArray &lCoords, FloatMatri
             answer.at(7, ndofs_xm * 2 + i) = N.at(i) * factor;
         }
         
-        answer.times( this->evaluateHeavisideGamma(lCoords.at(3), static_cast< ShellCrack* >(ei)) ); 
+        answer.times( this->evaluateHeavisideXi(lCoords.at(3), static_cast< ShellCrack* >(ei)) ); 
         answer.times(DISC_DOF_SCALE_FAC);
 
     } else if ( ei && dynamic_cast< Delamination*>(ei) ) {
@@ -1924,7 +1954,7 @@ Shell7BaseXFEM :: computeEnrichedNmatrixAt(const FloatArray &lCoords, FloatMatri
         //std :: vector< double > efGP;
         //double levelSetGP = this->evaluateLevelSet(lCoords, ei);
         //ei->evaluateEnrFuncAt(efGP, lCoords, levelSetGP);
-        double fac = this->evaluateHeavisideGamma(lCoords.at(3), static_cast< Delamination* >(ei) );
+        double fac = this->evaluateHeavisideXi(lCoords.at(3), static_cast< Delamination* >(ei) );
         answer.times( fac * DISC_DOF_SCALE_FAC );
     } else {
         Shell7Base :: computeNmatrixAt(lCoords, answer);
@@ -1973,7 +2003,7 @@ Shell7BaseXFEM :: edgeComputeEnrichedNmatrixAt(FloatArray &lCoords, FloatMatrix 
             answer.at(6, ndofs_xm + 3 + j) = N.at(i) * factor;
             answer.at(7, ndofs_xm * 2 + i) = N.at(i) * factor;
         }
-        answer.times( this->evaluateHeavisideGamma(0.0, static_cast< ShellCrack* >(ei)) ); 
+        answer.times( this->evaluateHeavisideXi(0.0, static_cast< ShellCrack* >(ei)) ); 
         answer.times(DISC_DOF_SCALE_FAC);
 
     } else if ( ei && dynamic_cast< Delamination*>(ei) ) {
@@ -1981,7 +2011,7 @@ Shell7BaseXFEM :: edgeComputeEnrichedNmatrixAt(FloatArray &lCoords, FloatMatrix 
         //std :: vector< double > efGP;
         //double levelSetGP = this->edgeEvaluateLevelSet(lCoords, ei);
         //ei->evaluateEnrFuncAt(efGP, lCoords, levelSetGP);
-        double fac = this->evaluateHeavisideGamma(0.0, static_cast< Delamination* >(ei) );
+        double fac = this->evaluateHeavisideXi(0.0, static_cast< Delamination* >(ei) );
         answer.times( fac * DISC_DOF_SCALE_FAC );
     } else {
         Shell7Base :: edgeComputeNmatrixAt(lCoords, answer);
@@ -2055,7 +2085,7 @@ Shell7BaseXFEM :: edgeComputeEnrichedBmatrixAt(FloatArray &lCoords, FloatMatrix 
             answer.at(11, ndofs_xm * 2 + 1 + j) = N.at(i) * factor;
         }
 
-        answer.times( this->evaluateHeavisideGamma(lCoords.at(3), static_cast< ShellCrack* >(ei)) ); 
+        answer.times( this->evaluateHeavisideXi(lCoords.at(3), static_cast< ShellCrack* >(ei)) ); 
         answer.times(DISC_DOF_SCALE_FAC);
 
     } else if ( ei && dynamic_cast< Delamination*>(ei) ){
@@ -2063,7 +2093,7 @@ Shell7BaseXFEM :: edgeComputeEnrichedBmatrixAt(FloatArray &lCoords, FloatMatrix 
         //std :: vector< double > efGP;
         //double levelSetGP = this->evaluateLevelSet(lCoords, ei);
         //ei->evaluateEnrFuncAt(efGP, lCoords, levelSetGP);
-        double fac = this->evaluateHeavisideGamma(lCoords.at(3), static_cast< Delamination* >(ei) );
+        double fac = this->evaluateHeavisideXi(lCoords.at(3), static_cast< Delamination* >(ei) );
         answer.times( fac * DISC_DOF_SCALE_FAC );
     } else {
         Shell7Base :: edgeComputeBmatrixAt(lCoords, answer);

@@ -162,7 +162,7 @@ bool Tr2Shell7XFEM :: updateIntegrationRuleMultiCrack()
                 if ( dynamic_cast< ShellCrack*> (ei) ) {
 
                     // Determine if the crack goes through the current layer
-                    if( this->evaluateHeavisideGamma(xiMid_i, static_cast< ShellCrack* >(ei)) > 0) {
+                    if( this->evaluateHeavisideXi(xiMid_i, static_cast< ShellCrack* >(ei)) > 0) {
 
                         // Get the points describing each subdivision of the element
                         double startXi, endXi;

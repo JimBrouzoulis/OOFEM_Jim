@@ -203,7 +203,12 @@ public:
      * @param gp Gauss point.
      * @param tStep Time step.
      */
-    void computeDeformationGradientVector(FloatArray &answer, GaussPoint *gp, TimeStep *tStep);
+    virtual void computeDeformationGradientVector(FloatArray &answer, GaussPoint *gp, TimeStep *tStep);
+
+    /**
+      * Computes the current volume of element
+      */
+    double computeCurrentVolume(TimeStep *tStep);
 
     // data management
     virtual IRResultType initializeFrom(InputRecord *ir);
@@ -229,6 +234,7 @@ protected:
     }
     friend class GradDpElement;
     friend class PhaseFieldElement;
+    friend class XfemStructuralElementInterface;
 };
 } // end namespace oofem
 #endif // nlstructuralelement_h

@@ -208,6 +208,7 @@ NLStructuralElement :: giveInternalForcesVector(FloatArray &answer, TimeStep *tS
                 StructuralMaterial :: giveReducedVectorForm( stressTemp, vStress, gp->giveMaterialMode() );
                 answer.plusProduct(B, stressTemp, dV);
             } else   {
+              vStress.printYourself("stress");
                 answer.plusProduct(B, vStress, dV);
             }
         } else   {

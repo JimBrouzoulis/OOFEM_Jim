@@ -43,6 +43,7 @@
 #include "classfactory.h"
 #include "activebc.h"
 #include "DSSolver.h"
+#include "dof.h"
 
 #include <set>
 

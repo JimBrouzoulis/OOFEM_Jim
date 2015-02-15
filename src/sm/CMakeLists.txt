@@ -88,8 +88,10 @@ set (sm_element
 set (sm_interface_elements
     Elements/Interfaces/cohsur3d.C
     Elements/Interfaces/structuralinterfaceelement.C
+    Elements/Interfaces/structuralinterfaceelementphf.C
     Elements/Interfaces/intelpoint.C
     Elements/Interfaces/intelline1.C
+    Elements/Interfaces/intelline1phf.C
     Elements/Interfaces/intelline2.C
     Elements/Interfaces/intelsurftr1.C
     Elements/Interfaces/Deprecated/interfaceelement1d.C
@@ -230,6 +232,8 @@ set (sm_interface_materials
     Materials/InterfaceMaterials/Deprecated/isointerfacedamage01.C
     Materials/InterfaceMaterials/Deprecated/isointerfacedamage02.C
     Materials/InterfaceMaterials/Deprecated/simpleinterfacemat.C
+    Materials/InterfaceMaterials/structuralinterfacematerialphf.C
+    Materials/InterfaceMaterials/intmatphasefield.C
     )
 
 set (sm_error

@@ -204,8 +204,10 @@ void
 IntElLine1PhF :: giveEngTraction(FloatArray &answer, GaussPoint *gp, const FloatArray &jump, const double damage, TimeStep *tStep)
 {
     
-    StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( this->giveMaterial() );
+    StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( this->giveInterfaceCrossSection()->giveInterfaceMaterial() );
     //double damage = this->computeDamageAt(gp, VM_Total, tStep);
+    
+    //StructuralInterfaceMaterial *mat = this->giveInterfaceCrossSection()->giveInterfaceMaterial();
     mat->giveEngTraction_2d(answer, gp, jump, damage, tStep);
     //this->giveInterfaceCrossSection()->giveEngTraction_2d(answer, gp, jump, tStep);
 }

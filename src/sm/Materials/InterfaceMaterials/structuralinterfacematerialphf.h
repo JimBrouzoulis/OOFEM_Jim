@@ -58,8 +58,8 @@ public:
     { OOFEM_ERROR("not implemented "); };
     
 
-    virtual double giveDrivingForce(GaussPoint *gp) { OOFEM_ERROR("not implemented "); };
-    virtual double giveDrivingForcePrime(GaussPoint *gp) { OOFEM_ERROR("not implemented "); };
+    virtual double giveDrivingForce(GaussPoint *gp) { OOFEM_ERROR("not implemented "); return -1;};
+    virtual double giveDrivingForcePrime(GaussPoint *gp) { OOFEM_ERROR("not implemented "); return -1; };
     
     // Df/Dd
     //virtual void giveDrivingForceTangent(FloatMatrix &answer,  MatResponseMode mode, GaussPoint *gp, TimeStep *tStep);

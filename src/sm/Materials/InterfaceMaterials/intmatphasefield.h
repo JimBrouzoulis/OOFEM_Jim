@@ -62,7 +62,7 @@ class IntMatPhaseFieldStatus : public StructuralInterfaceMaterialStatus
 {
 public:
     IntMatPhaseFieldStatus(int n, Domain * d, GaussPoint * g);
-    virtual ~IntMatPhaseFieldStatus();
+    virtual ~IntMatPhaseFieldStatus(){};
     
     /// damage variable
     double tempDamage;
@@ -77,13 +77,13 @@ public:
      
     virtual const char *giveClassName() const { return "IntMatPhaseFieldStatus"; }
     
-    //virtual void initTempStatus();
-    //virtual void updateYourself(TimeStep *tStep);
+    virtual void initTempStatus();
+    virtual void updateYourself(TimeStep *tStep);
 
 };
 
 
-class IntMatPhaseField : public StructuralInterfaceMaterialPhF {
+class IntMatPhaseField : public StructuralInterfaceMaterialPhF{
 public:
     IntMatPhaseField(int n, Domain * d);
     virtual ~IntMatPhaseField();
@@ -94,20 +94,18 @@ public:
     virtual const char *giveClassName() const { return "IntMatPhaseField"; }
     virtual const char *giveInputRecordName() const { return _IFT_IntMatPhaseField_Name; }
 
-    //virtual void giveFirstPKTraction_3d(FloatArray &answer, GaussPoint *gp, const FloatArray &jumpVector, const double damage, 
-    //                                    const FloatMatrix &F, TimeStep *tStep);
     virtual void giveEngTraction_3d(FloatArray &answer, GaussPoint *gp, const FloatArray &jump, const double damage, TimeStep *tStep);
     virtual void give3dStiffnessMatrix_Eng(FloatMatrix &answer,  MatResponseMode mode, GaussPoint *gp, TimeStep *tStep);
     virtual void giveTangents(FloatMatrix &jj, FloatMatrix &jd, FloatMatrix &dj, FloatMatrix &dd, MatResponseMode mode, GaussPoint *gp, TimeStep *tStep);
-    
-    
-    //virtual void give3dStiffnessMatrix_dTdj(FloatMatrix &answer, MatResponseMode rMode, GaussPoint *gp, TimeStep *tStep);
+     
+
 
     virtual IRResultType initializeFrom(InputRecord *ir);
     virtual void giveInputRecord(DynamicInputRecord &input);
 
-    virtual MaterialStatus *CreateStatus(GaussPoint *gp) const { return new StructuralInterfaceMaterialStatus(1, domain, gp); }
-
+    //virtual MaterialStatus *CreateStatus(GaussPoint *gp) const { return new StructuralInterfaceMaterialStatus(1, domain, gp); }
+    virtual MaterialStatus *CreateStatus(GaussPoint *gp) const { return new IntMatPhaseFieldStatus(1, domain, gp); }; 
+    
     virtual bool hasAnalyticalTangentStiffness() const { return true; };
 
     

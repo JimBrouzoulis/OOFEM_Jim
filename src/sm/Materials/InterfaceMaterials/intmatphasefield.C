@@ -90,12 +90,9 @@ IntMatPhaseField :: giveEngTraction_3d(FloatArray &answer, GaussPoint *gp, const
      if ( jump.at(3) > 0.0 ) { 
          drivingEnergy += 0.5*k*jump.at(3)*jump.at(3);
      }
-//     if ( drivingEnergy > status->giveTempDrivingEnergy() ) { // max val
-//         status->letTempDrivingEnergyBe( drivingEnergy ); 
-//     }
-     
-     
-     
+     if ( drivingEnergy > status->giveTempDrivingEnergy() ) { // max val
+         status->letTempDrivingEnergyBe( drivingEnergy ); 
+     }
      
      status->tempDamage = damage; 
     
@@ -181,7 +178,7 @@ IntMatPhaseField :: giveDrivingForce(GaussPoint *gp)
     IntMatPhaseFieldStatus *status = static_cast< IntMatPhaseFieldStatus * >( this->giveStatus(gp) );
     double gPrime = compute_gPrime(status->giveDamage());
     
-    return - gPrime / this->Gc * status->giveDrivingEnergy(); 
+    return  gPrime / this->Gc * status->giveTempDrivingEnergy(); 
 }
 
 double 
@@ -190,7 +187,7 @@ IntMatPhaseField :: giveDrivingForcePrime(GaussPoint *gp)
     IntMatPhaseFieldStatus *status = static_cast< IntMatPhaseFieldStatus * >( this->giveStatus(gp) );    
     double gBis = compute_gBis(status->giveDamage());
     
-    return - gBis / this->Gc * status->giveDrivingEnergy();     
+    return  gBis / this->Gc * status->giveTempDrivingEnergy();     
 }
 
 
@@ -256,6 +253,38 @@ void IntMatPhaseField :: giveInputRecord(DynamicInputRecord &input)
     StructuralInterfaceMaterial :: giveInputRecord(input);
 
     input.setField(k, _IFT_IntMatPhaseField_kn);
+}
+
+
+
+
+IntMatPhaseFieldStatus :: IntMatPhaseFieldStatus(int n, Domain *d, GaussPoint *g) : StructuralInterfaceMaterialStatus(n, d, g)
+{
+    this->tempDrivingEnergy = 0.0;
+    this->drivingEnergy = 0.0;
+    this->tempDamage = 0.0;
+}
+
+
+
+void
+IntMatPhaseFieldStatus :: initTempStatus()
+{
+    
+    StructuralInterfaceMaterialStatus :: initTempStatus();
+    
+    this->tempDrivingEnergy = 0.0;
+    this->drivingEnergy = 0.0;
+    this->tempDamage = 0.0;
+}
+
+void
+IntMatPhaseFieldStatus :: updateYourself(TimeStep *atTime)
+{
+    
+    StructuralInterfaceMaterialStatus :: updateYourself(atTime);
+    this->drivingEnergy = this->tempDrivingEnergy;
+    
 }
 
 

@@ -54,6 +54,7 @@ StructuralInterfaceElementPhF :: StructuralInterfaceElementPhF(int n, Domain *aD
     interpolation(NULL),
     nlGeometry(0)
 {
+    this->internalLength = 1.0e-1;
 }
 
 
@@ -80,35 +81,6 @@ StructuralInterfaceElementPhF :: computeDamageUnknowns(FloatArray &answer, Value
 
 
 
-
-
-
-void
-StructuralInterfaceElementPhF :: computeSpatialJump(FloatArray &answer, IntegrationPoint *ip, TimeStep *tStep)
-{
-    // Computes the spatial jump vector at the Gauss point (ip) of
-    // the receiver, at time step (tStep). jump = N*u
-    FloatMatrix N;
-    FloatArray u;
-
-    if ( !this->isActivated(tStep) ) {
-        answer.resize(3);
-        answer.zero();
-        return;
-    }
-
-    this->computeNmatrixAt(ip, N);
-    IntArray dofIdMask;
-    this->giveDofManDofIDMask_u(dofIdMask);
-    this->computeVectorOf(dofIdMask, VM_Total, tStep, answer);
-
-    // subtract initial displacements, if defined
-    if ( initialDisplacements.giveSize() ) {
-        u.subtract(initialDisplacements);
-    }
-
-    answer.beProductOf(N, u);
-}
 
 
 
@@ -141,8 +113,6 @@ StructuralInterfaceElementPhF :: giveInternalForcesVector(FloatArray &answer, Ti
     IntArray IdMask_u, IdMask_d;
     this->giveDofManDofIDMask_u( IdMask_u );
     this->giveDofManDofIDMask_d( IdMask_d );
-    //this->computeLocationArrayOfDofIDs( IdMask_u, loc_u );
-    //this->computeLocationArrayOfDofIDs( IdMask_d, loc_d );
     this->getLocationArray_u(loc_u);
     this->getLocationArray_d(loc_d);
     int ndofs = this->computeNumberOfDofs();
@@ -152,10 +122,9 @@ StructuralInterfaceElementPhF :: giveInternalForcesVector(FloatArray &answer, Ti
     FloatArray answer_d(0);
     this->giveInternalForcesVector_u(answer_u, tStep, useUpdatedGpRecord);
     this->giveInternalForcesVector_d(answer_d, tStep, useUpdatedGpRecord);
-    //answer.assemble(answer_u, loc_u);
-    //answer.assemble(answer_d, loc_d);
+    answer.assemble(answer_u, loc_u);
+    answer.assemble(answer_d, loc_d);
     
-    //answer.printYourself("f");
 }
 
 
@@ -165,8 +134,8 @@ StructuralInterfaceElementPhF :: giveInternalForcesVector_u(FloatArray &answer, 
 {
 
     
-    FloatMatrix N, rotationMatGtoL;
-    FloatArray u, traction, tractionTemp, jump;
+    FloatMatrix N;
+    FloatArray u, traction, jump;
     
     IntArray dofIdArray;
     this->giveDofManDofIDMask_u(dofIdArray);
@@ -186,17 +155,13 @@ StructuralInterfaceElementPhF :: giveInternalForcesVector_u(FloatArray &answer, 
         
         jump.beProductOf(N, u);
         this->computeTraction(traction, ip, jump, tStep);
+        //traction.resize(2);
         
-        //ip->giveNaturalCoordinates().printYourself();
         // compute internal cohesive forces as f = N^T*traction dA
-        //double dA = this->computeAreaAround(ip);
-        //answer.plusProduct(N, traction, dA);
+        double dA = this->computeAreaAround(ip);
+        answer.plusProduct(N, traction, dA);
     }
-    
-    for ( auto &ip: *this->giveDefaultIntegrationRulePtr() ) {
-        ip->giveNaturalCoordinates().printYourself();
-    }
-    
+
 }
 
 void
@@ -204,22 +169,21 @@ StructuralInterfaceElementPhF :: giveInternalForcesVector_d(FloatArray &answer, 
 {
     
     // computes int_A ( N^t * ( d + l*f ) + B^t * l^2 * gradd(d)  )* dA
-    FloatArray NStress, BStress, Nd, BS, a_d, grad_d;
-    FloatMatrix N, B;
+    FloatArray BStress, Nd, BS, a_d, grad_d;
+    FloatMatrix B;
     answer.clear();
     this->computeDamageUnknowns( a_d, VM_Total, tStep );
     
     double l = this->giveInternalLength();
     
-    for ( auto &ip: *this->giveDefaultIntegrationRulePtr() ) {
-        
-        
-        ip->giveNaturalCoordinates().printYourself();
+    for ( auto &ip: *this->giveDefaultIntegrationRulePtr() ) {       
+
         // Part 1
-        //StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( ip->giveMaterial() );
-        StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( this->giveMaterial() );
+        StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( this->giveInterfaceCrossSection()->giveInterfaceMaterial() );
+
         double d = computeDamageAt( ip, VM_Total, tStep );
-        double facN = d + l * mat->giveDrivingForce(ip); 
+        double facN = d + l * mat->giveDrivingForce(ip);
+
         this->giveInterpolation()->evalN(Nd, ip->giveNaturalCoordinates(), FEIElementGeometryWrapper(this));       
         
         double dA = this->computeAreaAround(ip);
@@ -239,7 +203,6 @@ StructuralInterfaceElementPhF :: giveInternalForcesVector_d(FloatArray &answer, 
     answer.zero();
     answer.assemble(temp,{1,2});
     answer.assemble(temp,{3,4});
-    
     
 }
 
@@ -308,9 +271,9 @@ StructuralInterfaceElementPhF :: computeStiffnessMatrix(FloatMatrix &answer, Mat
 {
     //set displacement and nonlocal location array
     ///@todo this part is enough to do once
-    IntArray IdMask_u, IdMask_d;
-    this->giveDofManDofIDMask_u( IdMask_u );
-    this->giveDofManDofIDMask_d( IdMask_d );
+    //IntArray IdMask_u, IdMask_d;
+    //this->giveDofManDofIDMask_u( IdMask_u );
+    //this->giveDofManDofIDMask_d( IdMask_d );
 
     this->getLocationArray_u(loc_u);
     this->getLocationArray_d(loc_d);
@@ -321,8 +284,8 @@ StructuralInterfaceElementPhF :: computeStiffnessMatrix(FloatMatrix &answer, Mat
     
     FloatMatrix answer1, answer2, answer3, answer4;
     
-    //this->computeStiffnessMatrix_uu(answer1, rMode, tStep);
-    StructuralInterfaceElement :: computeStiffnessMatrix(answer1, rMode, tStep);
+    this->computeStiffnessMatrix_uu(answer1, rMode, tStep);
+    //StructuralInterfaceElement :: computeStiffnessMatrix(answer1, rMode, tStep);
     
     
     //this->computeStiffnessMatrix_ud(answer2, rMode, tStep);
@@ -336,12 +299,10 @@ StructuralInterfaceElementPhF :: computeStiffnessMatrix(FloatMatrix &answer, Mat
     //answer.assemble( answer3, loc_d, loc_u );
     answer.assemble( answer4, loc_d, loc_d );
     
-    answer.printYourself("K");
 }
 
 
 
-// can use the one from base element
 void
 StructuralInterfaceElementPhF :: computeStiffnessMatrix_uu(FloatMatrix &answer, MatResponseMode rMode, TimeStep *tStep)
 {
@@ -357,8 +318,6 @@ StructuralInterfaceElementPhF :: computeStiffnessMatrix_uu(FloatMatrix &answer, 
     
     FloatMatrix rotationMatGtoL;
     for ( auto &ip: *this->giveDefaultIntegrationRulePtr() ) {
-        //StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( ip->giveMaterial() );
-        //mat->give3dStiffnessMatrix_Eng();
         
         this->giveStiffnessMatrix_Eng(D, rMode, ip, tStep);
         
@@ -398,7 +357,6 @@ StructuralInterfaceElementPhF :: computeStiffnessMatrix_ud(FloatMatrix &answer, 
     
     for ( auto &ip: *this->giveDefaultIntegrationRulePtr() ) {        
         
-        //StructuralMaterialStatus *matStat = static_cast< StructuralMaterialStatus * >( ip->giveMaterialStatus() );
         double dA = this->computeAreaAround(ip);
         
         // compute int_V ( B^t * D_B * B )dV
@@ -426,15 +384,11 @@ StructuralInterfaceElementPhF :: computeStiffnessMatrix_dd(FloatMatrix &answer, 
     double l = this->giveInternalLength();
 
     FloatMatrix B_d, N_d;
-    //StructuralCrossSection *cs = dynamic_cast<StructuralCrossSection* > (this->giveCrossSection() );
-
-
-    FloatMatrix N, D, DN;
     answer.clear();
 
     FloatMatrix rotationMatGtoL;
     for ( auto &ip: *this->giveDefaultIntegrationRulePtr() ) {
-        StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( ip->giveMaterial() );
+        StructuralInterfaceMaterialPhF *mat = static_cast< StructuralInterfaceMaterialPhF * >( this->giveInterfaceCrossSection()->giveInterfaceMaterial() );
         
         this->computeNd_matrixAt(ip->giveNaturalCoordinates(), N_d);
         this->computeBd_matrixAt(ip, B_d);
@@ -472,11 +426,10 @@ StructuralInterfaceElementPhF :: computeTraction(FloatArray &traction, Integrati
 
     double damage = this->computeDamageAt(ip, VM_Total, tStep);
     
-    
     this->giveEngTraction(traction, ip, jump, damage, tStep);
     
     
-    //traction.rotatedWith(rotationMatGtoL, 't');     // transform traction to global coord system
+    traction.rotatedWith(rotationMatGtoL, 't');     // transform traction to global coord system
 }
 
 

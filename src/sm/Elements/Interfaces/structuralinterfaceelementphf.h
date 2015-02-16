@@ -107,14 +107,14 @@ public:
     ///@todo move these to a cross section model later
     double internalLength;
     double giveInternalLength( ) { return internalLength; };
-    double criticalEnergy;
-    double giveCriticalEnergy() { return criticalEnergy; };
-    double relaxationTime;
-    double giveRelaxationTime( ) { return relaxationTime; };
-    double penaltyParameter;
-    double givePenaltyParameter() { return penaltyParameter; };
-    double psiBar0;
-    double givePsiBar0() { return psiBar0; };
+    //double criticalEnergy;
+    //double giveCriticalEnergy() { return criticalEnergy; };
+    //double relaxationTime;
+    //double giveRelaxationTime( ) { return relaxationTime; };
+    //double penaltyParameter;
+    //double givePenaltyParameter() { return penaltyParameter; };
+    //double psiBar0;
+    //double givePsiBar0() { return psiBar0; };
     
     
     ///@todo put in material model
@@ -139,7 +139,7 @@ public:
     
     virtual void giveInternalForcesVector(FloatArray &answer, TimeStep *tStep, int useUpdatedGpRecord = 0);
     virtual void computeTraction(FloatArray &traction, IntegrationPoint *ip, FloatArray &jump, TimeStep *tStep);
-    virtual void computeSpatialJump(FloatArray &answer, GaussPoint *gp, TimeStep *tStep);
+    //virtual void computeSpatialJump(FloatArray &answer, GaussPoint *gp, TimeStep *tStep);
     //virtual int giveIPValue(FloatArray &answer, GaussPoint *gp, InternalStateType type, TimeStep *tStep);
 
     virtual void computeCovarBaseVectorsAt(GaussPoint *gp, FloatMatrix &G) = 0;

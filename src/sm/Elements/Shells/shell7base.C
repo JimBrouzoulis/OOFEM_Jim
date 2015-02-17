@@ -45,6 +45,7 @@
 #include "constantsurfaceload.h"
 #include "vtkxmlexportmodule.h"
 #include "fracturemanager.h"
+#include "dof.h"
 #include <fstream>
 
 namespace oofem {
@@ -168,9 +169,9 @@ Shell7Base :: computeGlobalCoordinatesOnEdge(FloatArray &answer, const FloatArra
 
 
 double
-Shell7Base::giveGlobalZcoord( FloatArray &lCoords )
+Shell7Base::giveGlobalZcoord( const FloatArray &lCoords )
 {
-    return lCoords.at(3) * this->layeredCS->give( CS_Thickness, &lCoords, this, false ) * 0.5;
+    return lCoords.at(3) * this->layeredCS->give( CS_Thickness, lCoords, this, false ) * 0.5;
 }
 
 
@@ -188,7 +189,7 @@ Shell7Base :: giveGlobalZcoordInLayer(double xi, int layer)
 #if 1
 
 void
-Shell7Base :: evalInitialCovarBaseVectorsAt(FloatArray &lcoords, FloatMatrix &Gcov)
+Shell7Base :: evalInitialCovarBaseVectorsAt(const FloatArray &lcoords, FloatMatrix &Gcov)
 {
     double zeta = giveGlobalZcoord( lcoords );
     FloatArray M;
@@ -216,7 +217,7 @@ Shell7Base :: evalInitialCovarBaseVectorsAt(FloatArray &lcoords, FloatMatrix &Gc
 
 
 void
-Shell7Base :: edgeEvalInitialCovarBaseVectorsAt(FloatArray &lcoords, const int iedge, FloatArray &G1, FloatArray &G3)
+Shell7Base :: edgeEvalInitialCovarBaseVectorsAt(const FloatArray &lcoords, const int iedge, FloatArray &G1, FloatArray &G3)
 {
     double zeta = 0.0;     // no variation i z (yet)
     FloatArray M, dNdxi, nodeCoords;
@@ -240,7 +241,7 @@ Shell7Base :: edgeEvalInitialCovarBaseVectorsAt(FloatArray &lcoords, const int i
 
 
 void
-Shell7Base :: evalInitialContravarBaseVectorsAt(FloatArray &lCoords, FloatMatrix &Gcon)
+Shell7Base :: evalInitialContravarBaseVectorsAt(const FloatArray &lCoords, FloatMatrix &Gcon)
 {
     FloatMatrix Gcov;
     this->evalInitialCovarBaseVectorsAt(lCoords, Gcov);
@@ -260,7 +261,7 @@ Shell7Base :: giveDualBase( FloatMatrix &base1, FloatMatrix &base2)
 
 
 void
-Shell7Base :: evalInitialDirectorAt(FloatArray &lcoords, FloatArray &answer)
+Shell7Base :: evalInitialDirectorAt(const FloatArray &lcoords, FloatArray &answer)
 {   
     // Interpolates between the node directors
     FloatArray N;
@@ -273,7 +274,7 @@ Shell7Base :: evalInitialDirectorAt(FloatArray &lcoords, FloatArray &answer)
 
 
 void
-Shell7Base :: edgeEvalInitialDirectorAt(FloatArray &lcoords, FloatArray &answer, const int iEdge)
+Shell7Base :: edgeEvalInitialDirectorAt(const FloatArray &lcoords, FloatArray &answer, const int iEdge)
 {   
     // Interpolates between the node directors along an edge
 
@@ -323,7 +324,7 @@ Shell7Base :: setupInitialNodeDirectors()
 
 
 void
-Shell7Base :: evalCovarBaseVectorsAt(FloatArray &lcoords, FloatMatrix &gcov, FloatArray &genEps, TimeStep *tStep)
+Shell7Base :: evalCovarBaseVectorsAt(const FloatArray &lcoords, FloatMatrix &gcov, FloatArray &genEps, TimeStep *tStep)
 {
     // Evaluates the covariant base vectors in the current configuration
     FloatArray g1; FloatArray g2; FloatArray g3;
@@ -348,7 +349,7 @@ Shell7Base :: evalCovarBaseVectorsAt(FloatArray &lcoords, FloatMatrix &gcov, Flo
 
 
 void
-Shell7Base :: edgeEvalCovarBaseVectorsAt(FloatArray &lcoords, const int iedge, FloatMatrix &gcov, TimeStep *tStep)
+Shell7Base :: edgeEvalCovarBaseVectorsAt(const FloatArray &lcoords, const int iedge, FloatMatrix &gcov, TimeStep *tStep)
 {
     // Evaluates the covariant base vectors in the current configuration for an edge
     double zeta = lcoords.at(3);
@@ -511,14 +512,13 @@ Shell7Base :: computeBulkTangentMatrix(FloatMatrix &answer, FloatArray &solVec, 
 
     int numberOfLayers = this->layeredCS->giveNumberOfLayers();     
     FloatMatrix temp;
-    FloatArray genEpsI, genEpsJ, genEps, lCoords;
+    FloatArray genEpsI, genEpsJ, genEps;
 
     for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
-        IntegrationRule *iRule = integrationRulesArray [ layer - 1 ];
         StructuralMaterial *mat = static_cast< StructuralMaterial* >( domain->giveMaterial( this->layeredCS->giveLayerMaterial(layer) ) );
 
-        for ( GaussPoint *gp : *iRule ) {
-            lCoords = *gp->giveNaturalCoordinates();
+        for ( GaussPoint *gp : *integrationRulesArray [ layer - 1 ] ) {
+            const FloatArray &lCoords = gp->giveNaturalCoordinates();
 
             this->computeBmatrixAt(lCoords, B);
             genEps.beProductOf(B, solVec);
@@ -556,7 +556,7 @@ void
 Shell7Base :: computeLinearizedStiffness(GaussPoint *gp, StructuralMaterial *mat, TimeStep *tStep, FloatMatrix A [ 3 ] [ 3 ]) 
 {
     FloatArray Pcart;
-    FloatArray lcoords = *gp->giveNaturalCoordinates();
+    const FloatArray &lcoords = gp->giveNaturalCoordinates();
     FloatMatrix D;
 
     // Material stiffness when internal work is formulated in terms of P and F:
@@ -603,10 +603,10 @@ Shell7Base :: computePressureTangentMatrix(FloatMatrix &answer, Load *load, cons
     // Computes tangent matrix associated with the linearization of pressure loading. Assumes constant pressure.
     ConstantPressureLoad* pLoad = dynamic_cast< ConstantPressureLoad * >( load );
     
-    //IntegrationRule *iRule = giveInterpolation()->giveBoundaryIntegrationRule(load->giveApproxOrder(), iSurf);
+    //std :: unique_ptr< IntegrationRule >iRule( giveInterpolation()->giveBoundaryIntegrationRule(load->giveApproxOrder(), iSurf) );
     int nPointsTri = 6; //todo generalize
-    IntegrationRule *iRule = new GaussIntegrationRule(1, this);
-    iRule->SetUpPointsOnWedge(nPointsTri, 1, _3dMat); //@todo replce with triangle which has a xi3-coord
+    GaussIntegrationRule iRule(1, this);
+    iRule.SetUpPointsOnWedge(nPointsTri, 1, _3dMat); ///@todo replce with triangle which has a xi3-coord
     
     FloatMatrix N, B, LB, NLB, L(7, 18), gcov, W1, W2;
     FloatArray lcoords(3), solVec, pressure;
@@ -619,8 +619,7 @@ Shell7Base :: computePressureTangentMatrix(FloatMatrix &answer, Load *load, cons
     int ndof = Shell7Base :: giveNumberOfDofs();
     answer.resize(ndof, ndof);
     answer.zero();
-    for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
-        IntegrationPoint *ip = iRule->getIntegrationPoint(i);
+    for ( auto *ip: iRule ) { // rule #2 for surface integration
         lcoords.at(1) = ip->giveNaturalCoordinate(1);
         lcoords.at(2) = ip->giveNaturalCoordinate(2);
         lcoords.at(3) = xi;     // local coord where load is applied
@@ -631,7 +630,7 @@ Shell7Base :: computePressureTangentMatrix(FloatMatrix &answer, Load *load, cons
         genEps.beProductOf(B, solVec);     
 
         // Traction tangent, L =  lambdaN * ( W2*lambdaG_1 - W1*lambdaG_2  ) 
-        load->computeValueAt(pressure, tStep, *(ip->giveNaturalCoordinates()), VM_Total);        // pressure component   
+        load->computeValueAt(pressure, tStep, ip->giveNaturalCoordinates(), VM_Total);        // pressure component   
         this->evalCovarBaseVectorsAt(lcoords, gcov, genEps, tStep);
         g1.beColumnOf(gcov,1);
         g2.beColumnOf(gcov,2);
@@ -648,13 +647,11 @@ Shell7Base :: computePressureTangentMatrix(FloatMatrix &answer, Load *load, cons
         L.times( -pressure.at(1) );
 
         // Tangent matrix (K = N^T*L*B*dA)
-	LB.beProductOf(L,B);
-	NLB.beTProductOf(N,LB);
+        LB.beProductOf(L,B);
+        NLB.beTProductOf(N,LB);
         double dA = this->computeAreaAround(ip, xi);
         answer.add(dA, NLB);
     }
-    
-    delete iRule;
 }
 
 
@@ -687,7 +684,7 @@ Shell7Base :: giveAxialMatrix(const FloatArray &v)
 #if 1
 
 void
-Shell7Base :: computeFAt(FloatArray &lCoords, FloatMatrix &answer, FloatArray &genEps, TimeStep *tStep)
+Shell7Base :: computeFAt(const FloatArray &lCoords, FloatMatrix &answer, FloatArray &genEps, TimeStep *tStep)
 {
     // Computes the deformation gradient in matrix form as open product(g_i, G^i) = gcov*Gcon^T
     FloatMatrix gcov, Gcon;
@@ -701,7 +698,7 @@ Shell7Base :: computeStressMatrix(FloatMatrix &answer, FloatArray &genEps, Gauss
 {
     FloatMatrix F;
     FloatArray vF, vP;
-    computeFAt(*gp->giveNaturalCoordinates(), F, genEps, tStep);
+    computeFAt(gp->giveNaturalCoordinates(), F, genEps, tStep);
     vF.beVectorForm(F);
     static_cast< StructuralMaterial * >( mat )->giveFirstPKStressVector_3d(vP, gp, vF, tStep);
     answer.beMatrixForm(vP);
@@ -713,10 +710,10 @@ void
 Shell7Base :: computeCauchyStressVector(FloatArray &answer, GaussPoint *gp, TimeStep *tStep)
 {
     // Compute Cauchy stress from 2nd Piola stress
-    FloatArray solVec, lCoords;
+    FloatArray solVec;
     this->giveUpdatedSolutionVector(solVec, tStep); 
     FloatMatrix  B;
-    lCoords = *gp->giveNaturalCoordinates();
+    const FloatArray &lCoords = gp->giveNaturalCoordinates();
     this->computeBmatrixAt(lCoords, B);
     FloatArray genEps;
 
@@ -784,11 +781,10 @@ Shell7Base :: computeSectionalForces(FloatArray &answer, TimeStep *tStep, FloatA
     FloatMatrix B;
 
     for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
-        IntegrationRule *iRuleL = integrationRulesArray [ layer - 1 ];
         Material *mat = domain->giveMaterial( this->layeredCS->giveLayerMaterial(layer) );
 
-        for (GaussPoint *gp : *iRuleL) {
-            FloatArray &lCoords = *gp->giveNaturalCoordinates();
+        for (GaussPoint *gp : *integrationRulesArray [ layer - 1 ]) {
+            const FloatArray &lCoords = gp->giveNaturalCoordinates();
             this->computeBmatrixAt(lCoords, B);
             genEps.beProductOf(B, solVec);
 
@@ -816,8 +812,7 @@ Shell7Base :: computeSectionalForcesAt(FloatArray &sectionalForces, IntegrationP
     FloatArray PVector, temp;
     this->computeStressMatrix(P, genEps, ip, mat, tStep);
 
-    FloatArray lCoords = *ip->giveNaturalCoordinates();
-    this->evalInitialContravarBaseVectorsAt(lCoords, Gcon);
+    this->evalInitialContravarBaseVectorsAt(ip->giveNaturalCoordinates(), Gcon);
     PG.beProductOf(P,Gcon);
     PG1.beColumnOf(PG, 1);
     PG2.beColumnOf(PG, 2);
@@ -845,7 +840,7 @@ Shell7Base :: computeThicknessMappingCoeff(GaussPoint *gp, FloatArray &answer)
 {
     //thickness jacobian = ratio between volume and area: j0 = a3 + a2*zeta^2 + a1 * zeta
     // Returns array with a1-a3, used in expression for analytical integration of mass matrix.
-    FloatArray lcoords = *gp->giveNaturalCoordinates();
+    const FloatArray &lcoords = gp->giveNaturalCoordinates();
 
     FloatMatrix dNdxi;
     this->fei->evaldNdxi( dNdxi, lcoords, FEIElementGeometryWrapper(this) );
@@ -890,21 +885,20 @@ Shell7Base :: computeMassMatrix(FloatMatrix &answer, TimeStep *tStep)
 {
     // Analytically integrated over the thickness. Constant density assumed.
     int nPointsTri = 6; //todo generalize
-    IntegrationRule *iRule = new GaussIntegrationRule(1, this);
-    iRule->SetUpPointsOnWedge(nPointsTri, 1, _3dMat); //@todo replce with triangle which has a xi3-coord
+    GaussIntegrationRule iRule(1, this);
+    iRule.SetUpPointsOnWedge(nPointsTri, 1, _3dMat); ///@todo replce with triangle which has a xi3-coord
     
     
     //------------------------------
     FloatMatrix N, Ntm, NtmN, temp;
-    FloatArray solVec, lCoords;
+    FloatArray solVec;
     this->giveUpdatedSolutionVector(solVec, tStep);
 
     ///@todo: Should be changed to integration over the layers and use the corresponding material
     Material *mat = domain->giveMaterial( this->layeredCS->giveLayerMaterial(1) );     // for now, while I don't have an analytical exp.
 
-    for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
-        GaussPoint *gp = iRule->getIntegrationPoint(i);
-        lCoords = *gp->giveNaturalCoordinates();
+    for ( auto &gp: iRule ) {
+        const FloatArray &lCoords = gp->giveNaturalCoordinates();
         this->computeNmatrixAt(lCoords, N);
         FloatArray unknowns, m(3);
         unknowns.beProductOf(N, solVec);        // [x, m, gam]^T
@@ -949,8 +943,6 @@ Shell7Base :: computeMassMatrix(FloatMatrix &answer, TimeStep *tStep)
     const IntArray &ordering = this->giveOrderingDofTypes();    
     answer.assemble(temp, ordering);
     answer.symmetrized();
-
-    delete iRule;
 }
 
 
@@ -984,8 +976,8 @@ Shell7Base :: computeMassMatrixNum(FloatMatrix &answer, TimeStep *tStep)
     // Num refers in this case to  numerical integration in both in-plane and through the thickness.
     // For analytically integrated throught the thickness, see computeMassMatrix
 
-    FloatMatrix mass, temp;
-    FloatArray solVec, lCoords;
+    FloatMatrix mass;
+    FloatArray solVec;
     this->giveUpdatedSolutionVector(solVec, tStep);
     int numberOfLayers = this->layeredCS->giveNumberOfLayers();     // conversion of data
 
@@ -993,7 +985,6 @@ Shell7Base :: computeMassMatrixNum(FloatMatrix &answer, TimeStep *tStep)
     M.zero();
 
     for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
-        IntegrationRule *iRuleL = integrationRulesArray [ layer - 1 ];
         Material *mat = domain->giveMaterial( this->layeredCS->giveLayerMaterial(layer) );
 
         /* Consistent mass matrix M = int{N^t*mass*N}
@@ -1004,14 +995,13 @@ Shell7Base :: computeMassMatrixNum(FloatMatrix &answer, TimeStep *tStep)
          *         1  sym       f*m.m]     sym   F]
          */
 
-        for ( int j = 1; j <= iRuleL->giveNumberOfIntegrationPoints(); j++ ) {
-            GaussPoint *gp = iRuleL->getIntegrationPoint(j - 1);
-            lCoords = *gp->giveNaturalCoordinates();
+        for ( auto &gp: *integrationRulesArray [ layer - 1 ] ) {
+            const FloatArray &lCoords = gp->giveNaturalCoordinates();
             FloatMatrix lambda, B, N, temp;
             FloatArray genEps;
             this->computeBmatrixAt(lCoords, B);
             genEps.beProductOf(B, solVec);    
-            double zeta = giveGlobalZcoord(*gp->giveNaturalCoordinates());
+            double zeta = giveGlobalZcoord(gp->giveNaturalCoordinates());
             this->computeLambdaNMatrix(lambda, genEps, zeta);
             
             // could also create lambda*N and then plusProdSymm - probably faster
@@ -1024,7 +1014,7 @@ Shell7Base :: computeMassMatrixNum(FloatMatrix &answer, TimeStep *tStep)
             M.plusProductSymmUpper(N, temp, rho*dV);
         }
         M.symmetrized();
-        const IntArray &ordering = this->giveOrderingDofTypes();	
+        const IntArray &ordering = this->giveOrderingDofTypes();
         answer.zero();
         answer.assemble(M, ordering, ordering);
 #endif
@@ -1038,21 +1028,18 @@ Shell7Base :: computeConvectiveMassForce(FloatArray &answer, TimeStep *tStep)
 {
     ///@todo: very old version should be checked
     // Analytically integrated over the thickness. Constant density assumed.
-
     int nPointsTri = 6; //todo generalize
-    IntegrationRule *iRule = new GaussIntegrationRule(1, this);
-    iRule->SetUpPointsOnWedge(nPointsTri, 1, _3dMat); //@todo replce with triangle which has a xi3-coord
+    GaussIntegrationRule iRule(1, this);
+    iRule.SetUpPointsOnWedge(nPointsTri, 1, _3dMat); //@todo replce with triangle which has a xi3-coord
         
-    GaussPoint *gp;
     FloatMatrix N;
-    FloatArray lCoords, a, da, m, dm, aVec, daVec, fm(7);
+    FloatArray a, da, m, dm, aVec, daVec, fm(7);
     double gam, dgam, dA;
 
     answer.resize(42);
     answer.zero();
-    for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
-        gp = iRule->getIntegrationPoint(i);
-        lCoords = *gp->giveNaturalCoordinates();
+    for ( auto &gp: iRule ) { // rule 2 for mid-plane integration only
+        const FloatArray &lCoords = gp->giveNaturalCoordinates();
         this->computeNmatrixAt(lCoords, N);
         this->giveUpdatedSolutionVector(aVec, tStep);
         // Fix for the new numbering in B & N
@@ -1099,8 +1086,6 @@ Shell7Base :: computeConvectiveMassForce(FloatArray &answer, TimeStep *tStep)
         dA = this->computeAreaAround(gp, xi);
         answer.plusProduct(N, fm, dA);
     }
-    
-    delete iRule;
 }
 
 
@@ -1157,8 +1142,7 @@ Shell7Base :: computePressureForce(FloatArray &answer, FloatArray solVec, const 
     FloatMatrix N, B, lambda;
     FloatArray Fp, fp, genEps, genEpsC, lCoords(3), traction, solVecC;
 
-    for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
-        IntegrationPoint *ip = iRule->getIntegrationPoint(i);
+    for ( auto *ip: *iRule ) { // rule #2 for surface integration
         lCoords.at(1) = ip->giveNaturalCoordinate(1);
         lCoords.at(2) = ip->giveNaturalCoordinate(2);
         lCoords.at(1) = pLoad->giveLoadOffset( );
@@ -1209,7 +1193,7 @@ Shell7Base :: computePressureForceAt(GaussPoint *gp, FloatArray &traction, const
         traction.beVectorProductOf(g1, g2);        // normal vector (should not be normalized due to integraton in reference config.)
         traction.times( -load.at(1) );
     } else if ( dynamic_cast< ConstantSurfaceLoad * >( surfLoad ) ) {
-        surfLoad->computeValueAt(traction, tStep, *(gp->giveNaturalCoordinates()), mode);        // traction vector
+        surfLoad->computeValueAt(traction, tStep, gp->giveNaturalCoordinates(), mode);        // traction vector
     } else {
         OOFEM_ERROR("incompatible load type");
     }
@@ -1217,7 +1201,7 @@ Shell7Base :: computePressureForceAt(GaussPoint *gp, FloatArray &traction, const
 }
 
 void
-Shell7Base :: evalCovarNormalAt(FloatArray &nCov, FloatArray &lCoords, FloatArray &genEpsC, TimeStep *tStep)
+Shell7Base :: evalCovarNormalAt(FloatArray &nCov, const FloatArray &lCoords, FloatArray &genEpsC, TimeStep *tStep)
 {
     FloatMatrix gcov;
     this->evalCovarBaseVectorsAt(lCoords, gcov, genEpsC, tStep);
@@ -1229,7 +1213,7 @@ Shell7Base :: evalCovarNormalAt(FloatArray &nCov, FloatArray &lCoords, FloatArra
 }
 
 void
-Shell7Base :: evalInitialCovarNormalAt(FloatArray &nCov, FloatArray &lCoords)
+Shell7Base :: evalInitialCovarNormalAt(FloatArray &nCov, const FloatArray &lCoords)
 {
     FloatMatrix Gcov;
     this->evalInitialCovarBaseVectorsAt(lCoords, Gcov);
@@ -1248,17 +1232,13 @@ Shell7Base :: computeTractionForce(FloatArray &answer, const int iEdge, Boundary
     int numberOfGaussPoints = ( int ) ceil( ( approxOrder + 1. ) / 2. );
     GaussIntegrationRule iRule(1, this, 1, 1);
     iRule.SetUpPointsOnLine(numberOfGaussPoints, _Unknown);    
-    
     FloatMatrix N, Q;
-    FloatArray fT(7), components, lCoords;
+    FloatArray fT(7), Nf, components;
     
     Load :: CoordSystType coordSystType = edgeLoad->giveCoordSystMode();
 
-    FloatArray Nftemp(21), Nf(21);
-    Nf.zero();
-
     for ( GaussPoint *gp : iRule ) {    
-        lCoords = *gp->giveNaturalCoordinates();
+        const FloatArray &lCoords = gp->giveNaturalCoordinates();
         edgeLoad->computeValueAt(components, tStep, lCoords, mode);
         this->edgeComputeNmatrixAt(lCoords, N);
 
@@ -1290,8 +1270,7 @@ Shell7Base :: computeTractionForce(FloatArray &answer, const int iEdge, Boundary
 
         double dL = this->edgeComputeLengthAround(gp, iEdge);        
         
-        Nftemp.beTProductOf(N, fT*dL);
-        Nf.add(Nftemp);
+        Nf.plusProduct(N, fT, dL);
     }
 
     IntArray mask;
@@ -1322,8 +1301,7 @@ Shell7Base :: edgeComputeLengthAround(GaussPoint *gp, const int iedge)
 {
     FloatArray G1, G3;
     double detJ;
-    FloatArray lcoords;
-    lcoords=*gp->giveNaturalCoordinates();
+    const FloatArray &lcoords = gp->giveNaturalCoordinates();
     this->edgeEvalInitialCovarBaseVectorsAt(lcoords, iedge, G1, G3);
     detJ = G1.computeNorm();
     return detJ * gp->giveWeight();
@@ -1367,16 +1345,13 @@ Shell7Base :: NodalRecoveryMI_computeNValProduct(FloatMatrix &answer, int layer,
    // N(nsigma, nsigma*nnodes)
    // Definition : sigmaVector = N * nodalSigmaVector
     FloatArray stressVector, n;
-    Element *elem  = this->ZZNodalRecoveryMI_giveElement();
-    IntegrationRule *iRule = integrationRulesArray [ layer - 1 ];
-    GaussPoint *gp;
+    Element *elem = this->ZZNodalRecoveryMI_giveElement();
 
     //int size = ZZNodalRecoveryMI_giveDofManRecordSize(type);
     int size = 6; ///@todo this is hard coded for stress recovery
 
     answer.zero();
-    for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
-        gp  = iRule->getIntegrationPoint(i);
+    for ( auto *gp: *integrationRulesArray [ layer - 1 ] ) {
         double dV = this->computeVolumeAroundLayer(gp, layer);
 
         if ( !elem->giveIPValue(stressVector, gp, type, tStep) ) {
@@ -1400,10 +1375,8 @@ Shell7Base :: NodalRecoveryMI_computeNNMatrix(FloatArray &answer, int layer, Int
     //
     FloatMatrix fullAnswer;
     FloatArray n;
-    IntegrationRule *iRule = integrationRulesArray [ layer - 1 ];
 
-    for ( int i = 0; i < iRule->giveNumberOfIntegrationPoints(); i++ ) {
-        GaussPoint *gp = iRule->getIntegrationPoint(i);
+    for ( auto &gp: *integrationRulesArray [ layer - 1 ] ) {
         double dV = this->computeVolumeAroundLayer(gp, layer);
         this->ZZNodalRecoveryMI_ComputeEstimatedInterpolationMtrx(n, gp, type);
         fullAnswer.plusDyadSymmUpper(n, dV);
@@ -1438,7 +1411,7 @@ Shell7Base :: ZZNodalRecoveryMI_ComputeEstimatedInterpolationMtrx(FloatArray &an
         //    return;
         //}
 
-        interpol->evalN( answer, * gp->giveNaturalCoordinates(), FEIElementGeometryWrapper(this) );
+        interpol->evalN( answer, gp->giveNaturalCoordinates(), FEIElementGeometryWrapper(this) );
     } else {
         // ok default implementation can not work, as element is not providing valid interpolation
         // to resolve this, one can overload this method for element implementing ZZNodalRecoveryModelInterface
@@ -1608,7 +1581,7 @@ Shell7Base :: giveGeneralizedStrainComponents(FloatArray genEps, FloatArray &dph
 
 
 void
-Shell7Base :: giveUnknownsAt(FloatArray &lCoords, FloatArray &solVec, FloatArray &x, FloatArray &m, double gam, TimeStep *tStep)
+Shell7Base :: giveUnknownsAt(const FloatArray &lCoords, FloatArray &solVec, FloatArray &x, FloatArray &m, double gam, TimeStep *tStep)
 {
     // returns the unknowns evaluated at a point (xi1, xi2, xi3)
     FloatMatrix N;
@@ -1631,7 +1604,7 @@ Shell7Base :: giveUnknownsAt(FloatArray &lCoords, FloatArray &solVec, FloatArray
 
 
 void
-Shell7Base :: edgeComputeNmatrixAt(FloatArray &lcoords, FloatMatrix &answer)
+Shell7Base :: edgeComputeNmatrixAt(const FloatArray &lcoords, FloatMatrix &answer)
 {
 // Returns the displacement interpolation matrix {N} of the receiver 
 // evaluated at gaussPoint along one edge.
@@ -1661,7 +1634,7 @@ Shell7Base :: edgeComputeNmatrixAt(FloatArray &lcoords, FloatMatrix &answer)
 
 
 void
-Shell7Base :: edgeComputeBmatrixAt(FloatArray &lcoords, FloatMatrix &answer, int li, int ui)
+Shell7Base :: edgeComputeBmatrixAt(const FloatArray &lcoords, FloatMatrix &answer, int li, int ui)
 {
 /* Returns the  matrix {B} of the receiver, evaluated at aGaussPoint. Such that
  * B*a = [dxbar_dxi, dwdxi, w, dgamdxi, gam]^T, where a is the vector of unknowns
@@ -1711,7 +1684,7 @@ Shell7Base :: edgeComputeBmatrixAt(FloatArray &lcoords, FloatMatrix &answer, int
 
 
 void
-Shell7Base :: computeBmatrixAt(FloatArray &lcoords, FloatMatrix &answer, int li, int ui)
+Shell7Base :: computeBmatrixAt(const FloatArray &lcoords, FloatMatrix &answer, int li, int ui)
 {
     // Returns the  matrix {B} of the receiver, evaluated at aGaussPoint. Such that
     // B*a = [dxbar_dxi, dwdxi, w, dgamdxi, gam]^T, where a is the vector of unknowns
@@ -1818,7 +1791,7 @@ Shell7Base :: vtkEvalInitialGlobalCoordinateAt(const FloatArray &localCoords, in
 }
 
 void
-Shell7Base :: vtkEvalInitialGlobalCZCoordinateAt(FloatArray &localCoords, int interface, FloatArray &globalCoords)
+Shell7Base :: vtkEvalInitialGlobalCZCoordinateAt(const FloatArray &localCoords, int interface, FloatArray &globalCoords)
 {
     double zeta = giveGlobalZcoordInLayer(1.0, interface);
     FloatArray N;
@@ -1834,7 +1807,7 @@ Shell7Base :: vtkEvalInitialGlobalCZCoordinateAt(FloatArray &localCoords, int in
 }
 
 void
-Shell7Base :: vtkEvalUpdatedGlobalCoordinateAt(FloatArray &localCoords, int layer, FloatArray &globalCoords, TimeStep *tStep)
+Shell7Base :: vtkEvalUpdatedGlobalCoordinateAt(const FloatArray &localCoords, int layer, FloatArray &globalCoords, TimeStep *tStep)
 {
     FloatArray solVec;
     this->giveUpdatedSolutionVector(solVec, tStep);
@@ -1954,8 +1927,8 @@ Shell7Base :: giveShellExportData(VTKPiece &vtkPiece, IntArray &primaryVarsToExp
         InternalStateType type = ( InternalStateType ) cellVarsToExport.at(i);;
       
         for ( int layer = 1; layer <= numCells; layer++ ) {     
-            IntegrationRule *iRuleL = integrationRulesArray [ layer - 1 ];
-            VTKXMLExportModule::computeIPAverage(average, iRuleL, this, type, tStep);
+            std :: unique_ptr< IntegrationRule > &iRuleL = integrationRulesArray [ layer - 1 ];
+            VTKXMLExportModule::computeIPAverage(average, iRuleL.get(), this, type, tStep);
             
             if ( average.giveSize() == 6 ) {
                 vtkPiece.setCellVar(i, layer, convV6ToV9Stress(average) );
@@ -1986,20 +1959,18 @@ Shell7Base :: recoverValuesFromIP(std::vector<FloatArray> &recoveredValues, int 
 
     int numNodes = localNodeCoords.giveNumberOfColumns();
     recoveredValues.resize(numNodes);
-    
-    IntegrationRule *iRule = integrationRulesArray [ layer - 1 ];
-    IntegrationPoint *ip;
 
     // Find closest ip to the nodes
     IntArray closestIPArray(numNodes);
-    FloatArray nodeCoords, ipCoords, ipValues;
+    FloatArray nodeCoords, ipValues;
 
     for ( int i = 1; i <= numNodes; i++ ) {
         nodeCoords.beColumnOf(localNodeCoords, i);
         double distOld = 3.0; // should not be larger
-        for ( int j = 0; j < iRule->giveNumberOfIntegrationPoints(); j++ ) {
-            ip = iRule->getIntegrationPoint(j);
-            ipCoords = *ip->giveNaturalCoordinates();
+        std :: unique_ptr< IntegrationRule > &iRule = integrationRulesArray [ layer - 1 ];
+        for ( int j = 1; j <= iRule->giveNumberOfIntegrationPoints(); ++j ) {
+            IntegrationPoint *ip = iRule->getIntegrationPoint(j);
+            const FloatArray &ipCoords = ip->giveNaturalCoordinates();
             double dist = nodeCoords.distance(ipCoords);
             if ( dist < distOld ) {
                 closestIPArray.at(i) = j;
@@ -2012,7 +1983,7 @@ Shell7Base :: recoverValuesFromIP(std::vector<FloatArray> &recoveredValues, int 
 
     // recover ip values
     for ( int i = 1; i <= numNodes; i++ ) {
-        ip = iRule->getIntegrationPoint( closestIPArray.at(i) );
+        IntegrationPoint *ip = integrationRulesArray [ layer - 1 ]->getIntegrationPoint( closestIPArray.at(i) );
         this->giveIPValue(ipValues, ip, type, tStep);
         if ( valueType == ISVT_TENSOR_S3 ) {
             recoveredValues[i-1].resize(9);
@@ -2044,7 +2015,7 @@ Shell7Base :: recoverShearStress(TimeStep *tStep)
     FloatArray Tcon(6), Trec(6);  Tcon.zero(); Trec.zero();
     
      for ( int layer = 1; layer <= numberOfLayers; layer++ ) {
-        IntegrationRule *iRuleL = integrationRulesArray [ layer - 1 ];
+        std :: unique_ptr< IntegrationRule > &iRuleL = integrationRulesArray [ layer - 1 ];
         this->recoverValuesFromIP(recoveredValues, layer, IST_StressTensor, tStep);
         //this->ZZNodalRecoveryMI_recoverValues(recoveredValues, layer, IST_StressTensor, tStep);
         double thickness = this->layeredCS->giveLayerThickness(layer);
@@ -2067,7 +2038,7 @@ Shell7Base :: recoverShearStress(TimeStep *tStep)
                 int point = i*numInPlaneIP + j; // integration point number
                 GaussPoint *gp = iRuleL->getIntegrationPoint(point);
 
-                this->computeBmatrixForStressRecAt(*gp->giveNaturalCoordinates(), B, layer);
+                this->computeBmatrixForStressRecAt(gp->giveNaturalCoordinates(), B, layer);
                 dS.beProductOf(B,aS*(-dz)); // stress increment
 
                 StructuralMaterialStatus* status = dynamic_cast< StructuralMaterialStatus* > ( gp->giveMaterialStatus() );
@@ -2095,7 +2066,7 @@ Shell7Base :: recoverShearStress(TimeStep *tStep)
 
 
 void
-Shell7Base :: computeBmatrixForStressRecAt(FloatArray &lcoords, FloatMatrix &answer, int layer)
+Shell7Base :: computeBmatrixForStressRecAt(const FloatArray &lcoords, FloatMatrix &answer, int layer)
 {
     // Returns the  special matrix {B} of the receiver, evaluated at aGaussPoint. Such that
     // B*a = [dS_xx/dx + dS_xy/dy, dS_yx/dx + dS_yy/dy ]^T, where a is the vector of in plane 
@@ -2231,7 +2202,7 @@ Shell7Base :: computeInterLaminarStressesAt(int interfaceNum, TimeStep *tStep, s
         ip = irLower->getIntegrationPoint( irLower->upperInterfacePoints.at(i) );
         this->giveIPValue(vSLower, ip, IST_CauchyStressTensor, tStep);
 
-        this->evalInitialCovarNormalAt(nCov, *ip->giveNaturalCoordinates());
+        this->evalInitialCovarNormalAt(nCov, ip->giveNaturalCoordinates());
         vSMean = 0.5 * ( vSUpper + vSLower );
         SMean.beMatrixFormOfStress(vSMean);
         stressVec.beProductOf(SMean,nCov);

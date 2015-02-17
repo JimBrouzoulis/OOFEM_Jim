@@ -66,7 +66,7 @@ TrPlaneStrRot :: computeGaussPoints()
 {
     if ( integrationRulesArray.size() == 0 ) {
         integrationRulesArray.resize(1);
-        integrationRulesArray [ 0 ] = new GaussIntegrationRule(1, this, 1, 4);
+        integrationRulesArray [ 0 ].reset( new GaussIntegrationRule(1, this, 1, 3) );
         this->giveCrossSection()->setupIntegrationPoints(* integrationRulesArray [ 0 ], numberOfGaussPoints, this);
     }
 }
@@ -98,8 +98,8 @@ TrPlaneStrRot :: computeBmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li, i
     }
     
     // Derivatives of the shape functions (for this special interpolation)
-    FloatArray nx = this->GiveDerivativeUX(*gp->giveNaturalCoordinates());
-    FloatArray ny = this->GiveDerivativeVY(*gp->giveNaturalCoordinates());
+    FloatArray nx = this->GiveDerivativeUX(gp->giveNaturalCoordinates());
+    FloatArray ny = this->GiveDerivativeVY(gp->giveNaturalCoordinates());
 
     FloatArray center = {0.0, 0.0};
     FloatArray nxRed = this->GiveDerivativeVX( center );
@@ -171,8 +171,8 @@ TrPlaneStrRot :: computeBmatrixAt(GaussPoint *gp, FloatMatrix &answer, int li, i
     answer.resize(size, 9);
 
     if ( ( li <= 2 ) ) {
-        FloatArray nx = this->GiveDerivativeUX(*gp->giveNaturalCoordinates());
-        FloatArray ny = this->GiveDerivativeVY(*gp->giveNaturalCoordinates());
+        FloatArray nx = this->GiveDerivativeUX(gp->giveNaturalCoordinates());
+        FloatArray ny = this->GiveDerivativeVY(gp->giveNaturalCoordinates());
 
         if ( ( li <= 1 ) && ( ui >= 1 ) ) {
             for ( int i = 1; i <= 3; i++ ) {
@@ -367,9 +367,9 @@ TrPlaneStrRot :: GivePitch()
         int k = j + 1 - j / 2 * 3;
         if ( x(k) == x(j) ) {
             if ( y(k) > y(j) ) {
-                angles.at(i + 1) = 3.14159265358979 / 2.;
+                angles.at(i + 1) = M_PI / 2.;
             } else {
-                angles.at(i + 1) = 3.14159265358979 * 3. / 2.;
+                angles.at(i + 1) = M_PI * 3. / 2.;
             }
         }
 
@@ -377,15 +377,15 @@ TrPlaneStrRot :: GivePitch()
             if ( y(k) >= y(j) ) {
                 angles.at(i + 1) = atan( ( y(k) - y(j) ) / ( x(k) - x(j) ) );
             } else {
-                angles.at(i + 1) = 2. * 3.14159265358979 - atan( ( y(j) - y(k) ) / ( x(k) - x(j) ) );
+                angles.at(i + 1) = 2. * M_PI - atan( ( y(j) - y(k) ) / ( x(k) - x(j) ) );
             }
         }
 
         if ( x(k) < x(j) ) {
             if ( y(k) >= y(j) ) {
-                angles.at(i + 1) = 3.14159265358979 - atan( ( y(k) - y(j) ) / ( x(j) - x(k) ) );
+                angles.at(i + 1) = M_PI - atan( ( y(k) - y(j) ) / ( x(j) - x(k) ) );
             } else {
-                angles.at(i + 1) = 3.14159265358979 + atan( ( y(j) - y(k) ) / ( x(j) - x(k) ) );
+                angles.at(i + 1) = M_PI + atan( ( y(j) - y(k) ) / ( x(j) - x(k) ) );
             }
         }
     }
@@ -395,7 +395,7 @@ TrPlaneStrRot :: GivePitch()
 
 
 FloatArray
-TrPlaneStrRot :: GiveDerivativeUX(FloatArray &lCoords)
+TrPlaneStrRot :: GiveDerivativeUX(const FloatArray &lCoords)
 {
     // get node coordinates
     FloatArray x(3), y(3);
@@ -436,7 +436,7 @@ TrPlaneStrRot :: GiveDerivativeUX(FloatArray &lCoords)
 
 
 FloatArray
-TrPlaneStrRot :: GiveDerivativeVX(FloatArray &lCoords)
+TrPlaneStrRot :: GiveDerivativeVX(const FloatArray &lCoords)
 {
     // get node coordinates
     FloatArray x(3), y(3);
@@ -477,7 +477,7 @@ TrPlaneStrRot :: GiveDerivativeVX(FloatArray &lCoords)
 
 
 FloatArray
-TrPlaneStrRot :: GiveDerivativeUY(FloatArray &lCoords)
+TrPlaneStrRot :: GiveDerivativeUY(const FloatArray &lCoords)
 {
     // get node coordinates
     FloatArray x(3), y(3);
@@ -518,7 +518,7 @@ TrPlaneStrRot :: GiveDerivativeUY(FloatArray &lCoords)
 
 
 FloatArray
-TrPlaneStrRot :: GiveDerivativeVY(FloatArray &lCoords)
+TrPlaneStrRot :: GiveDerivativeVY(const FloatArray &lCoords)
 {
     // get node coordinates
     FloatArray x(3), y(3);

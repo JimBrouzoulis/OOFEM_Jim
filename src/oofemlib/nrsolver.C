@@ -65,6 +65,7 @@ namespace oofem {
 
 REGISTER_SparseNonLinearSystemNM(NRSolver)
 
+int nLayers = 5; // Number of layers in layered cross section used for phase field damage
 NRSolver :: NRSolver(Domain *d, EngngModel *m) :
     SparseNonLinearSystemNM(d, m), prescribedDofs(), prescribedDofsValues()
 {
@@ -572,7 +573,7 @@ NRSolver :: checkConvergence(FloatArray &RT, FloatArray &F, FloatArray &rhs,  Fl
     }
 
     if ( internalForcesEBENorm.giveSize() > 1 ) { // Special treatment when just one norm is given; No grouping
-        int nccdg = this->domain->giveMaxDofID();
+        int nccdg = this->domain->giveMaxDofID()+nLayers;				//number of layers for phase field shell (jim @todo jb layer)
         // Keeps tracks of which dof IDs are actually in use;
         IntArray idsInUse(nccdg);
         idsInUse.zero();
@@ -602,8 +603,14 @@ NRSolver :: checkConvergence(FloatArray &RT, FloatArray &F, FloatArray &rhs,  Fl
                     continue;
                 }
 
-                dg_forceErr.at(dofid) += rhs.at(eq) * rhs.at(eq);
-                dg_dispErr.at(dofid) += ddX.at(eq) * ddX.at(eq);
+				//if (dofid >= 23) {
+				//	dg_forceErr.at(dofid) += 0;
+				//	dg_dispErr.at(dofid) += 0;
+				//} else {
+					dg_forceErr.at(dofid) += rhs.at(eq) * rhs.at(eq);
+					dg_dispErr.at(dofid) += ddX.at(eq) * ddX.at(eq);
+				//}
+
                 dg_totalLoadLevel.at(dofid) += RT.at(eq) * RT.at(eq);
                 dg_totalDisp.at(dofid) += X.at(eq) * X.at(eq);
                 idsInUse.at(dofid) = 1;
@@ -692,7 +699,11 @@ NRSolver :: checkConvergence(FloatArray &RT, FloatArray &F, FloatArray &rhs,  Fl
             if ( rtolf.at(1) > 0.0 ) {
                 //  compute a relative error norm
                 if ( ( dg_totalLoadLevel.at(dg) + internalForcesEBENorm.at(dg) ) > nrsolver_ERROR_NORM_SMALL_NUM ) {
+                    //if (dg>=23) {
+                    //    forceErr = sqrt( dg_forceErr.at(dg) );
+                    //}else{
                     forceErr = sqrt( dg_forceErr.at(dg) / ( dg_totalLoadLevel.at(dg) + internalForcesEBENorm.at(dg) ) );
+                    //}
                 } else {
                     // If both external forces and internal ebe norms are zero, then the residual must be zero.
                     //zeroNorm = true; // Warning about this afterwards.

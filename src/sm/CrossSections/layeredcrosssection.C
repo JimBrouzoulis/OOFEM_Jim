@@ -1083,10 +1083,33 @@ LayeredCrossSection :: give(CrossSectionProperty aProperty, GaussPoint *gp)
         return this->giveArea();
     } else if ( aProperty == CS_NumLayers ) {
         return this->numberOfLayers;
-    }
+    } else if (aProperty == CS_Layer ) {
+		return this->giveLayer(gp);
+	}
 
     return CrossSection :: give(aProperty, gp);
 }
+
+int 
+LayeredCrossSection :: giveLayer(GaussPoint *gp)	//@todo: works only for equal thickness of each layer
+{
+	FloatArray lCoords;
+	int noLayers = this->giveNumberOfLayers();
+	double dh = 2.0/noLayers;
+	lCoords = gp->giveNaturalCoordinates();
+	double lowXi = -1.0;
+
+	for (int i = 1; i <= noLayers; i++)
+	{
+		if (lCoords.at(3) > lowXi && lCoords.at(3) < lowXi+dh)
+		{
+			return i;
+		}
+		lowXi+=dh;
+	}
+	OOFEM_ERROR("LayeredCrossSection :: giveLayer - the actual integration point can not be associated with a layer in the cross section");
+}
+
 double
 LayeredCrossSection :: give(CrossSectionProperty aProperty, const FloatArray &coords, Element *elem, bool local)
 {

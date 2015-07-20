@@ -81,6 +81,7 @@ protected:
     /// Initial displacement vector, describes the initial nodal displacements when element has been casted.
     FloatArray initialDisplacements;
     FEInterpolation *interpolation;
+    
     /// Flag indicating if geometrical nonlinearities apply.
     int nlGeometry;
 
@@ -94,10 +95,11 @@ public:
     /// Destructor.
     virtual ~StructuralInterfaceElement();
 
+    virtual FEInterpolation *giveInterpolation() const { return interpolation; };
+
     virtual void giveCharacteristicMatrix(FloatMatrix &answer, CharType, TimeStep *tStep);
     virtual void giveCharacteristicVector(FloatArray &answer, CharType type, ValueModeType mode, TimeStep *tStep);
 
-    virtual FEInterpolation *giveInterpolation() const { return interpolation; };
     /**
      * Computes the stiffness/tangent matrix of receiver. Default implementation computes element stiffness using
      * @f$ K=\int_{\Gamma} N^{\mathrm{T}} D N \mathrm{d}V @f$ formulae, where @f$ N @f$ is the element geometric matrix such

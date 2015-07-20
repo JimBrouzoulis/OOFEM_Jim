@@ -156,6 +156,7 @@ public:
     virtual double give(CrossSectionProperty a, GaussPoint *gp);
     virtual double give(CrossSectionProperty a, const FloatArray &coords, Element *elem, bool local);
     int giveNumberOfLayers();
+	int giveLayer(GaussPoint *gp);
 
     /// Returns the total thickness of all layers.
     double computeIntegralThick();

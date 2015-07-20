@@ -1429,6 +1429,10 @@ VTKXMLExportModule :: getNodalVariableFromPrimaryField(FloatArray &answer, DofMa
         dofIDMask.followedBy(P_f);
         iState = IST_Pressure;
         answer.resize(1);
+    } else if ( type == ScalarDamage ) {
+        dofIDMask.followedBy(T_f);
+        iState = IST_Temperature;
+        answer.resize(1);
     } else if ( type == DirectorField ) {
         for ( Dof *dof: *dman ) {
             DofIDItem id = dof->giveDofID();

@@ -82,6 +82,7 @@ set (sm_element
     Elements/quad1platesubsoil.C 
     Elements/tria1platesubsoil.C
     Elements/trwarp.C
+    Elements/phasefieldelement.C
     #qplanstrssphf.C
     )
 
@@ -91,6 +92,7 @@ set (sm_interface_elements
     Elements/Interfaces/intelpoint.C
     Elements/Interfaces/intelline1.C
     Elements/Interfaces/intelline2.C
+    InterfaceElements/intelline1PF.C
     Elements/Interfaces/intelsurftr1.C
     Elements/Interfaces/Deprecated/interfaceelement1d.C
     Elements/Interfaces/Deprecated/interfaceelem2dlin.C

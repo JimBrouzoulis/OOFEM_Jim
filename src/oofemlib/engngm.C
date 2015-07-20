@@ -92,6 +92,7 @@
 
 
 namespace oofem {
+	int nLayers1 = 5; // number of layers in layered crosss section used for phase field damage
 EngngModel :: EngngModel(int i, EngngModel *_master) : domainNeqs(), domainPrescribedNeqs()
 {
     number = i;
@@ -836,7 +837,8 @@ void EngngModel :: assembleVector(FloatArray &answer, TimeStep *tStep,
                                   const UnknownNumberingScheme &s, Domain *domain, FloatArray *eNorms)
 {
     if ( eNorms ) {
-        int maxdofids = domain->giveMaxDofID();
+
+        int maxdofids = domain->giveMaxDofID()+nLayers1;	//number of layers for phase field shell (jim @todo jb layer)
 #ifdef __PARALLEL_MODE
         if ( this->isParallel() ) {
             int val;
